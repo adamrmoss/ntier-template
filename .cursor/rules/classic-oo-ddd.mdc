@@ -1,0 +1,62 @@
+---
+description: Classic OO, GoF, and DDD design preferences
+alwaysApply: true
+---
+
+# Classic OO and DDD
+
+Favor **classic object-oriented design** (GoF and Fowler pattern awareness, DDD layering) over composition-only minimalism. Inheritance is welcome when it clarifies responsibility.
+
+## Naming vs Pattern Awareness
+
+- **Type names** express **domain responsibility** (`CliCommand`, `UserRepository`, `UserService`) — not GoF pattern names (`TemplateMethodCommand`, `UserFactory`)
+- **Pattern awareness** guides structure: recognize when Template Method, Repository, Factory, Aggregate, Strategy, etc. fit, then name types for what they *do* in the domain
+- Fowler and GoF vocabulary is useful in design discussion and comments — not as a substitute for domain naming in code
+
+## Inheritance
+
+- **Default to inheritance** when there is a clear IS-A relationship
+- Use base classes to own **workflow and lifecycle**; subclasses supply domain-specific steps
+- Shared command/handler flows follow a **Template Method** shape, but types stay domain-named (e.g. `CliCommand` owns auth, host/scope setup, and execution; subclasses implement `Build()` and domain logic)
+- Do not avoid deeper hierarchies on style-guide grounds alone — prefer clarity of responsibility over flat composition for its own sake
+- Use composition when there is no genuine IS-A relationship
+
+## Interfaces and DI
+
+- Add an **interface for almost every type registered in dependency injection**
+- Interfaces define ports at layer boundaries (repositories, domain services, infrastructure adapters)
+- Concrete inheritance and abstract base classes may coexist with those interfaces within a layer
+- Api and Cli depend on domain service interfaces, not repositories or infrastructure types directly
+
+## Domain Model vs Services
+
+- Keep the **domain relatively rich**: entities and value objects own focused, isolated core rules and operations
+- **Domain services own the big actions**: transaction boundaries, orchestration across aggregates, and application lifecycle
+- Do not collapse everything into anemic data bags; do not put cross-aggregate workflows on entities either
+- Repositories handle persistence translation; services coordinate use cases
+
+## Static Types and Naming
+
+- **Pragmatic** about `static`: acceptable when a type has no meaningful identity or lifecycle
+- Even then, name it as a **domain concept** (`CliCommand`, `ServiceRegistrar`), not `Helper` or `Extensions`
+- Reserve obvious static/bootstrap entry points (`Program`, DI registration) without forcing them into instance types
+- When shared behavior implies identity or a workflow, prefer a named class — often a base class
+
+## Pattern Awareness (Fowler / GoF)
+
+Apply familiar patterns when they fit; **name types for domain responsibility, not pattern vocabulary**:
+
+| Pattern (awareness) | Domain-named shape here |
+|---------------------|-------------------------|
+| Template Method | `CliCommand` base class; subclasses fill in steps |
+| Repository | `IUserRepository` / `UserRepository` |
+| Factory | A type named for what it creates or assembles, not `*Factory` unless creation is its sole responsibility |
+| Aggregate | Consistency boundaries; entity names reflect the domain model |
+| Strategy | Swappable policy/algorithm behind an interface named for the capability |
+
+Prefer a clear domain type over a vague utility abstraction. Pattern names help you choose the shape; domain names help readers understand the code.
+
+## Related Rules
+
+- `domain-decomposition.mdc` — avoid `Helper` / `Extensions` type names
+- `repository-pattern.mdc`, `entity-architecture.mdc` — persistence and layer boundaries

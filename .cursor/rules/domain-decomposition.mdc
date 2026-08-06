@@ -1,0 +1,14 @@
+---
+description: Prefer domain types over Helper/Extensions naming
+globs: "**/*.{cs,ts}"
+alwaysApply: false
+---
+
+# Domain Decomposition
+
+Type names like `Helper` or `Extensions` suggest poor domain decomposition.
+
+- Prefer a named type that owns the behavior: a base class, service, command, repository, or other domain-aligned abstraction
+- When multiple call sites share a workflow, use **inheritance (Template Method)** or composition with a named type — see `classic-oo-ddd.mdc`
+- `static` is pragmatically acceptable when there is no meaningful identity, but the type must still be named as a domain concept
+- When shared CLI behavior grows, centralize it in a command base class rather than a helper

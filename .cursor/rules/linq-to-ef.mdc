@@ -1,0 +1,17 @@
+---
+description: No in-memory collections or untranslatable methods in IQueryable
+alwaysApply: true
+---
+
+# LINQ-to-EF
+
+When working with `IQueryable` and Entity Framework Core:
+
+- **Never** filter by in-memory collections (e.g. `myHashSet.Contains(x)`) inside an `IQueryable` pipeline
+- **Never** call C# methods that EF cannot translate (e.g. custom normalizers) inside an `IQueryable` pipeline
+- EF Core cannot translate these to SQL
+
+**Options:**
+
+1. Materialize first with `ToListAsync()`, then filter in memory (LINQ-to-Objects)
+2. Express the filter using only database-translatable operations (joins, SQL functions, constants)

@@ -1,0 +1,14 @@
+---
+description: Own generated-code failures and recover without burdening the user
+alwaysApply: true
+---
+
+# Error Ownership And Recovery
+
+- If generated code fails to build, run, or parse, treat it as an agent failure and fix it immediately
+- Do not ask the user to diagnose or explain errors caused by generated code
+- Do not provide self-justifying explanations or postmortems unless the user explicitly asks for one
+- Keep user-facing error responses brief and action-oriented: acknowledge, fix, verify, report
+- After a failure report, prioritize correction over discussion
+- Before reporting completion, verify the touched logic path with available checks (compile, lint, query validation, or equivalent)
+- If verification is blocked by environment limits, state exactly what was verified and what remains

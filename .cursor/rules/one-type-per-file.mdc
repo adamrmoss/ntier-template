@@ -1,0 +1,13 @@
+---
+description: Each nontrivial type gets its own source file
+globs: "**/*.cs"
+alwaysApply: false
+---
+
+# One Type Per File
+
+- Every nontrivial type (`class`, `interface`, `struct`, `enum`, `record`) gets its own source file
+- The file name must match the type name (e.g. `UserService.cs` for `UserService`)
+- Do not combine multiple nontrivial types in one file
+- Nested types are allowed only when they are trivial implementation details of the enclosing type
+- Entry points such as `Program.cs` may remain minimal bootstrap code only

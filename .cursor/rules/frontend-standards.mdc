@@ -1,0 +1,16 @@
+---
+description: TypeScript, Angular, and SCSS conventions
+globs: "**/*.ts,**/*.tsx,**/*.scss,**/*.css"
+alwaysApply: false
+---
+
+# Frontend Standards
+
+- Never use `rgba()` for colors; always use 8-digit hex `#rrggbbaa` (e.g. `#00000040` for black at 25% opacity)
+- In SCSS/CSS, sort properties lexically within each rule block
+- Always use braces `{ }` for all control structures, even single-line blocks
+- Always use TypeScript over JavaScript and SCSS over CSS whenever possible
+- Angular projects use **standalone components** with separate template and stylesheet files; never embed SCSS or HTML in the component TypeScript file
+- Avoid dynamic `import()` wherever possible; prefer static imports. When a circular dependency appears, break the cycle (e.g. split UI orchestration from domain/session logic into another injectable) rather than lazy-loading modules to hide the cycle. Intentional route-level code splitting (`loadComponent`, `loadChildren`) is fine
+- For documentation comments, see `documentation-standards.mdc`
+- For template binding rules, see `angular-template-simplicity.mdc`

@@ -1,0 +1,44 @@
+---
+description: Keep Angular templates simple; put view logic in component getters
+globs: "NTierTemplate.Web/**/*.html,NTierTemplate.Web/**/*.component.ts"
+alwaysApply: false
+---
+
+# Angular Template Simplicity
+
+Templates are for layout and binding names — not data shaping.
+
+## Rules
+
+- Do **not** call injected services or unwrap signals in HTML (`service.items()`, `stats()?.field`, `??` defaults)
+- Do **not** chain optional access, nullish coalescing, or slice/filter in templates
+- Expose view-ready values from the component class as **getters**, **computed signals**, or small methods used for actions/formatting
+- Inject services as **`private readonly`** when the template only uses getters
+- Pipes in templates are fine when bound to a simple property (`copayRate | pct`)
+
+## Examples
+
+```html
+<!-- ❌ BAD -->
+[val]="(finance.stats()?.copayRate ?? 0) | pct"
+@for (item of charge.items(); track item.id)
+
+<!-- ✅ GOOD -->
+[val]="copayRate | pct"
+@for (item of items; track item.id)
+```
+
+```typescript
+// Component class
+private readonly finance = inject(FinanceService);
+
+public get copayRate(): number
+{
+    return this.finance.stats()?.copayRate ?? 0;
+}
+
+public get items(): ChargeItem[]
+{
+    return this.charge.items();
+}
+```

@@ -1,0 +1,40 @@
+---
+description: EF migrations and DbContext rules
+globs: "NTierTemplate.Data/**/*.cs"
+alwaysApply: false
+---
+
+# Entity Framework and Database Migrations
+
+## Migrations — Do Not Touch
+
+- Do **not** create, edit, or delete any file in `NTierTemplate.Data/Migrations/` or `NTierTemplateDbContextModelSnapshot.cs`
+- Never create migration files directly — the user generates them with `dotnet ef`
+
+When schema changes require a migration:
+
+1. Add entity properties and DbContext configuration
+2. Tell the user to run:
+
+```bash
+dotnet ef migrations add <MigrationName> \
+  --project NTierTemplate.Data/NTierTemplate.Data.csproj \
+  --startup-project NTierTemplate.Api/NTierTemplate.Api.csproj
+```
+
+## Entity Configuration
+
+- Create persistence classes in `NTierTemplate.Data` (stored fields only; no computed properties)
+- Implement `IEntityTypeConfiguration<T>` on the entity class itself (`Configure` method on the entity); do **not** create separate `*Configuration` classes
+- `DbContext.OnModelCreating` may configure Identity junction tables; other entities use `ApplyConfigurationsFromAssembly`
+- Every entity must have a `DbSet<T>` property in `NTierTemplateDbContext` (alphabetical order)
+
+## Materialized Views
+
+- Create only the entity class in the Data layer (no DTO in domain, no repository)
+- Materialized views are read-only query targets
+
+## Design-Time
+
+- Use `NTierTemplateDbContextFactory` (reads `dbsettings.json`) for design-time migrations
+- Copy `sample.dbsettings.json` to `dbsettings.json` with a real connection string first

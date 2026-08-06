@@ -1,0 +1,8 @@
+---
+description: Shell and CLI command policy
+alwaysApply: true
+---
+
+# Shell Commands
+
+- Never run shell or CLI commands; propose commands for the user to run at their discretion

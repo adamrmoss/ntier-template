@@ -1,0 +1,25 @@
+---
+description: Core project guidelines — answering, paths, changes, solution structure
+alwaysApply: true
+---
+
+# General Guidelines
+
+- Always answer questions directly first
+- Use actual workspace paths in docs, scripts, and examples; do not use placeholder paths like `/path/to/project`
+- Never make code changes without explicit user request
+- Comment and documentation rules live in `documentation-standards.mdc`
+
+## Solution Structure
+
+Projects live at the repo root, one per layer:
+
+| Project | Role |
+|---------|------|
+| `NTierTemplate/` | Domain models, domain services, repository interfaces |
+| `NTierTemplate.Data/` | EF entities, DbContext, repository implementations, Identity persistence |
+| `NTierTemplate.Api/` | ASP.NET Core HTTP API |
+| `NTierTemplate.Cli/` | Command-line entry points |
+| `NTierTemplate.Web/` | Angular client |
+
+Within each project, organize by **domain**, not technical folders (`controllers/`, `services/`, `views/`, etc.).

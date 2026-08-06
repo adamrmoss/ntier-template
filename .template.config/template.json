@@ -88,5 +88,16 @@
             },
             "replaces": "ntier"
         }
-    }
+    },
+    "sources": [
+        {
+            "modifiers": [
+                {
+                    "exclude": [
+                        "docs/TEMPLATE.md"
+                    ]
+                }
+            ]
+        }
+    ]
 }

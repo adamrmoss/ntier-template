@@ -18,9 +18,7 @@ The Angular client lives in `ntier-template-web/` at the repo root — kebab-cas
 
 ## Component Prefix
 
-- Template source uses selector prefix **`ntier`** (e.g. `ntier-home`)
-- On `dotnet new`, prefix is replaced with **lowercase initials** derived from the `-n` name (PascalCase capitals — e.g. `DietzMoss` → `dm`)
-- Override with `--webPrefixOverride <prefix>` when initials are not suitable
+- Angular selector prefix is **`ntier`** (e.g. `ntier-home`)
 
 ## SCSS / CSS
 

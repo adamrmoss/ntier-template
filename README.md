@@ -1,6 +1,6 @@
 # ntier-template
 
-Standard template for n-tier enterprise applications: Angular client, ASP.NET Core API, CLI, and RabbitMQ worker queue.
+N-tier enterprise application: Angular client, ASP.NET Core API, CLI, and RabbitMQ worker queue.
 
 ## Solution Layout
 
@@ -12,7 +12,7 @@ Standard template for n-tier enterprise applications: Angular client, ASP.NET Co
 | `NTierTemplate.Api/` | HTTP API host |
 | `NTierTemplate.Cli/` | Command-line host |
 | `NTierTemplate.Queue/` | RabbitMQ worker host |
-| `ntier-template-web/` | Angular client — Material, NgRx; kebab-case folder |
+| `ntier-template-web/` | Angular client — Material, NgRx |
 | `NTierTemplate.Test/` | Unit tests — references Domain and Application only |
 
 ## Architecture
@@ -35,16 +35,5 @@ Standard template for n-tier enterprise applications: Angular client, ASP.NET Co
 - **CQRS-oriented** — queries synchronous via Application; commands usually enqueued for the worker
 - **DAO naming** — `IUserDao` / `UserDao`, not Repository
 - **Testing** — unit tests used sparingly; all non-configuration logic lives in Domain and Application; `NTierTemplate.Test/` references those two projects only
-
-## Template Naming
-
-| Token | Example (`dotnet new ntier -n DietzMoss`) |
-|-------|-------------------------------------------|
-| `NTierTemplate` | `DietzMoss` |
-| `ntier-template` | `dietz-moss` |
-| `ntier-template-web` | `dietz-moss-web` |
-| `ntier` (Angular prefix) | `dm` |
-
-Override Angular prefix: `--webPrefixOverride <prefix>`
 
 See `.cursor/rules/` for coding standards and layer boundaries.

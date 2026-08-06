@@ -1,6 +1,6 @@
 ---
 description: Keep Angular templates simple; put view logic in component getters
-globs: "NTierTemplate.Web/**/*.html,NTierTemplate.Web/**/*.component.ts"
+globs: "ntier-template-web/**/*.html,ntier-template-web/**/*.component.ts"
 alwaysApply: false
 ---
 

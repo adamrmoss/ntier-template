@@ -18,6 +18,20 @@
         },
         "kebabCase": {
             "identifier": "kebabCase"
+        },
+        "initialsForm": {
+            "identifier": "chain",
+            "steps": [
+                {
+                    "identifier": "replace",
+                    "pattern": "[a-z0-9_\\s\\.-]+",
+                    "replacement": ""
+                },
+                {
+                    "identifier": "casing",
+                    "toLower": true
+                }
+            ]
         }
     },
     "symbols": {
@@ -34,6 +48,45 @@
             "valueTransform": "kebabCase",
             "replaces": "ntier-template",
             "fileRename": "ntier-template"
+        },
+        "kebabWebFolder": {
+            "type": "generated",
+            "generator": "combine",
+            "parameters": {
+                "symbols": [
+                    {
+                        "type": "ref",
+                        "value": "kebabName"
+                    },
+                    {
+                        "type": "literal",
+                        "value": "-web"
+                    }
+                ],
+                "separator": ""
+            },
+            "replaces": "ntier-template-web",
+            "fileRename": "ntier-template-web"
+        },
+        "webPrefixFromName": {
+            "type": "derived",
+            "valueSource": "name",
+            "valueTransform": "pascalCase",
+            "form": "initialsForm"
+        },
+        "webPrefixOverride": {
+            "type": "parameter",
+            "datatype": "string",
+            "description": "Optional Angular selector prefix (overrides initials derived from name)"
+        },
+        "webPrefix": {
+            "type": "generated",
+            "generator": "coalesce",
+            "parameters": {
+                "sourceVariableName": "webPrefixOverride",
+                "fallbackVariableName": "webPrefixFromName"
+            },
+            "replaces": "ntier"
         }
     }
 }

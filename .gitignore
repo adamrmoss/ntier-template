@@ -55,3 +55,9 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Angular
+ntier-template-web/node_modules/
+ntier-template-web/dist/
+ntier-template-web/.angular/
+ntier-template-web/out-tsc/

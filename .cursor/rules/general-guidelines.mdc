@@ -22,16 +22,23 @@ Projects live at the repo root, one per layer:
 | `NTierTemplate.Api/`         | ASP.NET Core HTTP API (host + IoC bootstrap)                      |
 | `NTierTemplate.Cli/`         | Command-line entry points (host + IoC bootstrap)                  |
 | `NTierTemplate.Queue/`       | RabbitMQ worker host (host + IoC bootstrap)                       |
-| `NTierTemplate.Web/`         | Angular client                                                    |
+| `ntier-template-web/`        | Angular client (kebab-case; separate from backend projects)       |
 | `NTierTemplate.Test/`        | Unit tests — references Domain and Application only               |
 
 Within each project, organize by **domain**, not technical folders (`controllers/`, `services/`, `views/`, etc.).
+
+## EditorConfig
+
+- Single repo-root `.editorconfig` for the whole solution — do not keep scaffold copies under `ntier-template-web/` or other projects
+- **4-space** indentation, UTF-8, insert final newline, trim trailing whitespace
+- Prettier `tabWidth` must be **4** to match
+- Opening braces on their own line (Allman) — see `csharp-standards.mdc` and `angular-template-simplicity.mdc` examples
 
 All **non-configuration logic** lives in Domain and Application. Entry points, Data, and hosts are configuration and wiring — not unit-tested.
 
 ## Layer Dependencies
 
-Project references stack upward from **Domain** at the bottom. `NTierTemplate.Web/` is outside this graph — it talks to the API over HTTP only.
+Project references stack upward from **Domain** at the bottom. `ntier-template-web/` is outside this graph — it talks to the API over HTTP only.
 
 Each entry-point host (`Api`, `Cli`, `Queue`) bootstraps its own IoC container. **Application owns the common wiring** — shared `ServiceCollection` extension methods that register Data, DAOs, and application services. Hosts call Application's registration; they do not duplicate it.
 
@@ -56,7 +63,7 @@ Web ──HTTP──▶ Api            (outside project-reference graph)
 | `NTierTemplate.Cli/`         | Domain, Application         |
 | `NTierTemplate.Queue/`       | Domain, Application         |
 | `NTierTemplate.Test/`        | Domain, Application         |
-| `NTierTemplate.Web/`         | *(none — HTTP client only)* |
+| `ntier-template-web/`        | *(none — HTTP client only)* |
 
 Entry points must not take a project reference to **Data**. They consume behavior through Application services and shared types from Domain — not EF types, DAO implementations, or Identity managers.
 

@@ -1,16 +1,58 @@
 ---
-description: TypeScript, Angular, and SCSS conventions
-globs: "**/*.ts,**/*.tsx,**/*.scss,**/*.css"
+description: TypeScript, Angular, SCSS, Angular Material, and NgRx conventions
+globs: "ntier-template-web/**/*.ts,ntier-template-web/**/*.tsx,ntier-template-web/**/*.scss,ntier-template-web/**/*.css"
 alwaysApply: false
 ---
 
 # Frontend Standards
 
+The Angular client lives in `ntier-template-web/` at the repo root — kebab-case, visually separate from PascalCase backend projects.
+
+## Stack
+
+- **Angular 21** (stable) — pin CLI with `@angular/cli@21`; do not use `@latest` (resolves to Angular 22)
+- **Angular Material** `@21` for UI components and layout
+- **NgRx** `21.1.x` (`@ngrx/store`, `@ngrx/effects`, `@ngrx/store-devtools`) — minor version must match installed NgRx line; major must match Angular
+- In `package.json`, use **minor-version wildcards** (e.g. `21.2.x`, `7.8.x`) — never `^` or `~`
+- **Standalone components** with separate template and stylesheet files; never embed SCSS or HTML in the component TypeScript file
+
+## Component Prefix
+
+- Template source uses selector prefix **`ntier`** (e.g. `ntier-home`)
+- On `dotnet new`, prefix is replaced with **lowercase initials** derived from the `-n` name (PascalCase capitals — e.g. `DietzMoss` → `dm`)
+- Override with `--webPrefixOverride <prefix>` when initials are not suitable
+
+## SCSS / CSS
+
 - Never use `rgba()` for colors; always use 8-digit hex `#rrggbbaa` (e.g. `#00000040` for black at 25% opacity)
-- In SCSS/CSS, sort properties lexically within each rule block
+- Sort **declarations** lexically (A–Z by property name) within each rule block — applies to `.scss`, `.css`, and `<style>` blocks
+- Sort map keys lexically when authoring SCSS maps (e.g. theme config)
+- Nested rule blocks each get their own sort; `@use`, `@include`, and nested selectors are not reorderable declarations
+
+```scss
+// ✅ GOOD
+.card
+{
+    background-color: #ffffff;
+    border-radius: 4px;
+    color: #000000;
+    margin: 0;
+    padding: 1rem;
+}
+
+// ❌ BAD — properties out of order
+.card
+{
+    padding: 1rem;
+    color: #000000;
+    background-color: #ffffff;
+}
+```
+
+## TypeScript / General
+
 - Always use braces `{ }` for all control structures, even single-line blocks
 - Always use TypeScript over JavaScript and SCSS over CSS whenever possible
-- Angular projects use **standalone components** with separate template and stylesheet files; never embed SCSS or HTML in the component TypeScript file
 - Avoid dynamic `import()` wherever possible; prefer static imports. When a circular dependency appears, break the cycle (e.g. split UI orchestration from domain/session logic into another injectable) rather than lazy-loading modules to hide the cycle. Intentional route-level code splitting (`loadComponent`, `loadChildren`) is fine
 - For documentation comments, see `documentation-standards.mdc`
 - For template binding rules, see `angular-template-simplicity.mdc`

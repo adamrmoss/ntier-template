@@ -27,8 +27,8 @@ Project rules live in `.cursor/rules/`. Rules with `alwaysApply: true` are inclu
 | `testing.mdc` | `NTierTemplate.Test/**/*.cs` | Unit test scope and conventions |
 | `domain-decomposition.mdc` | `**/*.{cs,ts}` | Avoid `Helper` / `Extensions` type names |
 | `documentation-standards.mdc` | `**/*.cs,**/*.ts,**/*.tsx` | Comments and docs |
-| `frontend-standards.mdc` | `**/*.ts,**/*.tsx,**/*.scss,**/*.css` | TypeScript, Angular, SCSS |
-| `angular-template-simplicity.mdc` | `NTierTemplate.Web/**/*.html,NTierTemplate.Web/**/*.component.ts` | Simple templates; view logic in getters |
+| `frontend-standards.mdc` | `ntier-template-web/**` | Angular, Material, NgRx, SCSS |
+| `angular-template-simplicity.mdc` | `ntier-template-web/**/*.html,ntier-template-web/**/*.component.ts` | Simple templates; view logic in getters |
 
 ## Solution Layout
 
@@ -40,7 +40,7 @@ Project rules live in `.cursor/rules/`. Rules with `alwaysApply: true` are inclu
 | `NTierTemplate.Api/` | HTTP API host |
 | `NTierTemplate.Cli/` | CLI host |
 | `NTierTemplate.Queue/` | RabbitMQ worker host |
-| `NTierTemplate.Web/` | Angular client |
+| `ntier-template-web/` | Angular client (Material, NgRx) |
 | `NTierTemplate.Test/` | Unit tests (Domain, Application) |
 
 ## Layer Dependencies
@@ -66,6 +66,6 @@ Web ──HTTP──▶ Api
 | `NTierTemplate.Cli/` | Domain, Application |
 | `NTierTemplate.Queue/` | Domain, Application |
 | `NTierTemplate.Test/` | Domain, Application |
-| `NTierTemplate.Web/` | *(HTTP only)* |
+| `ntier-template-web/` | *(HTTP only)* |
 
 Entry points must not reference **Data** directly. Application owns common IoC wiring. `NTierTemplate.Test/` sits outside the runtime graph — references Domain and Application only; see `testing.mdc`.

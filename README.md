@@ -12,7 +12,7 @@ Standard template for n-tier enterprise applications: Angular client, ASP.NET Co
 | `NTierTemplate.Api/` | HTTP API host |
 | `NTierTemplate.Cli/` | Command-line host |
 | `NTierTemplate.Queue/` | RabbitMQ worker host |
-| `NTierTemplate.Web/` | Angular client |
+| `ntier-template-web/` | Angular client — Material, NgRx; kebab-case folder |
 | `NTierTemplate.Test/` | Unit tests — references Domain and Application only |
 
 ## Architecture
@@ -31,9 +31,20 @@ Standard template for n-tier enterprise applications: Angular client, ASP.NET Co
 - **Data** — EF, DAO implementations, Identity; depends on Domain
 - **Application** — use-case orchestration and common `ServiceCollection` wiring; depends on Domain and Data
 - **Api, Cli, Queue** — entry-point hosts; each bootstraps IoC via Application's wiring; depend on Domain and Application only
-- **Web** — outside this graph (HTTP client to Api)
+- **ntier-template-web** — outside this graph (HTTP client to Api); Angular Material + NgRx
 - **CQRS-oriented** — queries synchronous via Application; commands usually enqueued for the worker
 - **DAO naming** — `IUserDao` / `UserDao`, not Repository
 - **Testing** — unit tests used sparingly; all non-configuration logic lives in Domain and Application; `NTierTemplate.Test/` references those two projects only
+
+## Template Naming
+
+| Token | Example (`dotnet new ntier -n DietzMoss`) |
+|-------|-------------------------------------------|
+| `NTierTemplate` | `DietzMoss` |
+| `ntier-template` | `dietz-moss` |
+| `ntier-template-web` | `dietz-moss-web` |
+| `ntier` (Angular prefix) | `dm` |
+
+Override Angular prefix: `--webPrefixOverride <prefix>`
 
 See `.cursor/rules/` for coding standards and layer boundaries.

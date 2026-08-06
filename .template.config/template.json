@@ -1,0 +1,39 @@
+{
+    "$schema": "https://json.schemastore.org/template",
+    "author": "Adam R Moss",
+    "classifications": [
+        "ASP.NET Core",
+        "Angular",
+        "N-Tier",
+        "Solution"
+    ],
+    "identity": "DietzMoss.NTierTemplate",
+    "name": "N-Tier Application Solution",
+    "shortName": "ntier",
+    "sourceName": "NTierTemplate",
+    "preferNameDirectory": false,
+    "forms": {
+        "camelCase": {
+            "identifier": "firstLowerCaseInvariant"
+        },
+        "kebabCase": {
+            "identifier": "kebabCase"
+        }
+    },
+    "symbols": {
+        "camelName": {
+            "type": "derived",
+            "valueSource": "name",
+            "valueTransform": "camelCase",
+            "replaces": "nTierTemplate",
+            "fileRename": "nTierTemplate"
+        },
+        "kebabName": {
+            "type": "derived",
+            "valueSource": "name",
+            "valueTransform": "kebabCase",
+            "replaces": "ntier-template",
+            "fileRename": "ntier-template"
+        }
+    }
+}

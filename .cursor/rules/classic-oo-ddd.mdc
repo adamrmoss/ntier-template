@@ -9,8 +9,8 @@ Favor **classic object-oriented design** (GoF and Fowler pattern awareness, DDD 
 
 ## Naming vs Pattern Awareness
 
-- **Type names** express **domain responsibility** (`CliCommand`, `UserRepository`, `UserService`) — not GoF pattern names (`TemplateMethodCommand`, `UserFactory`)
-- **Pattern awareness** guides structure: recognize when Template Method, Repository, Factory, Aggregate, Strategy, etc. fit, then name types for what they *do* in the domain
+- **Type names** express **domain responsibility** (`CliCommand`, `UserDao`, `UserService`) — not GoF pattern names (`TemplateMethodCommand`, `UserFactory`)
+- **Pattern awareness** guides structure: recognize when Template Method, DAO, Factory, Aggregate, Strategy, etc. fit, then name types for what they *do* in the domain
 - Fowler and GoF vocabulary is useful in design discussion and comments — not as a substitute for domain naming in code
 
 ## Inheritance
@@ -24,22 +24,23 @@ Favor **classic object-oriented design** (GoF and Fowler pattern awareness, DDD 
 ## Interfaces and DI
 
 - Add an **interface for almost every type registered in dependency injection**
-- Interfaces define ports at layer boundaries (repositories, domain services, infrastructure adapters)
+- Interfaces define ports at layer boundaries (DAOs, application services, infrastructure adapters)
 - Concrete inheritance and abstract base classes may coexist with those interfaces within a layer
-- Api and Cli depend on domain service interfaces, not repositories or infrastructure types directly
+- Application owns common IoC wiring; entry-point hosts bootstrap containers using Application's registration
+- Api, Cli, and Queue resolve Application service interfaces — not DAOs or infrastructure types directly
 
-## Domain Model vs Services
+## Domain Model vs Application Services
 
-- Keep the **domain relatively rich**: entities and value objects own focused, isolated core rules and operations
-- **Domain services own the big actions**: transaction boundaries, orchestration across aggregates, and application lifecycle
+- **Domain** holds shared types, message contracts, and entity behavior that fits comfortably on the entity itself
+- **Application services own use-case orchestration**: transaction boundaries, coordination across aggregates, and application lifecycle
 - Do not collapse everything into anemic data bags; do not put cross-aggregate workflows on entities either
-- Repositories handle persistence translation; services coordinate use cases
+- DAOs handle persistence translation; Application services coordinate use cases
 
 ## Static Types and Naming
 
 - **Pragmatic** about `static`: acceptable when a type has no meaningful identity or lifecycle
 - Even then, name it as a **domain concept** (`CliCommand`, `ServiceRegistrar`), not `Helper` or `Extensions`
-- Reserve obvious static/bootstrap entry points (`Program`, DI registration) without forcing them into instance types
+- Reserve obvious static/bootstrap entry points (`Program`, host IoC bootstrap) without forcing them into instance types
 - When shared behavior implies identity or a workflow, prefer a named class — often a base class
 
 ## Pattern Awareness (Fowler / GoF)
@@ -49,7 +50,7 @@ Apply familiar patterns when they fit; **name types for domain responsibility, n
 | Pattern (awareness) | Domain-named shape here |
 |---------------------|-------------------------|
 | Template Method | `CliCommand` base class; subclasses fill in steps |
-| Repository | `IUserRepository` / `UserRepository` |
+| Data access | `IUserDao` / `UserDao` |
 | Factory | A type named for what it creates or assembles, not `*Factory` unless creation is its sole responsibility |
 | Aggregate | Consistency boundaries; entity names reflect the domain model |
 | Strategy | Swappable policy/algorithm behind an interface named for the capability |
@@ -58,5 +59,6 @@ Prefer a clear domain type over a vague utility abstraction. Pattern names help 
 
 ## Related Rules
 
+- `application-layer.mdc` — use cases, IoC wiring, CQRS
 - `domain-decomposition.mdc` — avoid `Helper` / `Extensions` type names
-- `repository-pattern.mdc`, `entity-architecture.mdc` — persistence and layer boundaries
+- `dao-pattern.mdc`, `entity-architecture.mdc` — persistence and layer boundaries

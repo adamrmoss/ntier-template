@@ -1,0 +1,27 @@
+---
+description: DAO interfaces and implementations
+globs: "**/*.cs"
+alwaysApply: false
+---
+
+# DAO Pattern
+
+We standardize on **Dao** (not Repository) for domain data-access abstractions.
+
+- Each regular entity gets its own DAO interface and implementation
+- DAO **interfaces** go in `NTierTemplate/` (domain project) — e.g. `IUserDao`
+- DAO **implementations** go in `NTierTemplate.Data/` (data project) — e.g. `UserDao`
+- DAOs bridge EF/Identity persistence models and domain models at CRUD and query level
+- Materialized views and read-only query tables do **not** need DAOs
+- Never add query methods to a DAO unless they belong to that domain
+- Password hashing, role assignment, and password validation belong in DAO implementations (via `UserManager` / `RoleManager` inside `NTierTemplate.Data/`)
+- Email lookups in DAOs must use `UserManager.FindByEmailAsync` (or equivalent Identity APIs), not manual `NormalizedEmail` normalization
+- JWT token issuance stays in the auth layer (`NTierTemplate.Api/`); refresh-token persistence belongs in Application (via DAOs), not in Api
+- Api, Cli, and Queue call Application services (`IUserService`), not DAOs or `UserManager` directly
+- Application services call DAO interfaces — never EF types or Identity managers
+
+## Related Rules
+
+- `application-layer.mdc` — use cases that DAOs support
+- `entity-architecture.mdc` — domain vs EF entity split
+- `entity-framework.mdc` — migrations and DbContext configuration

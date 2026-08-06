@@ -20,8 +20,11 @@ Project rules live in `.cursor/rules/`. Rules with `alwaysApply: true` are inclu
 | `csharp-standards.mdc` | `**/*.cs` | C# coding standards |
 | `one-type-per-file.mdc` | `**/*.cs` | One nontrivial type per source file |
 | `entity-architecture.mdc` | `**/*.cs` | Domain vs EF entity split |
-| `repository-pattern.mdc` | `**/*.cs` | Repository interfaces and implementations |
+| `application-layer.mdc` | Application, Api, Cli, Queue | Use cases, IoC wiring, CQRS |
+| `dao-pattern.mdc` | `**/*.cs` | DAO interfaces and implementations |
 | `entity-framework.mdc` | `NTierTemplate.Data/**/*.cs` | EF migrations and DbContext |
+| `queue-layer.mdc` | `NTierTemplate.Queue/**/*.cs` | RabbitMQ worker host |
+| `testing.mdc` | `NTierTemplate.Test/**/*.cs` | Unit test scope and conventions |
 | `domain-decomposition.mdc` | `**/*.{cs,ts}` | Avoid `Helper` / `Extensions` type names |
 | `documentation-standards.mdc` | `**/*.cs,**/*.ts,**/*.tsx` | Comments and docs |
 | `frontend-standards.mdc` | `**/*.ts,**/*.tsx,**/*.scss,**/*.css` | TypeScript, Angular, SCSS |
@@ -31,8 +34,38 @@ Project rules live in `.cursor/rules/`. Rules with `alwaysApply: true` are inclu
 
 | Project | Role |
 |---------|------|
-| `NTierTemplate/` | Domain |
-| `NTierTemplate.Data/` | Persistence |
-| `NTierTemplate.Api/` | HTTP API |
-| `NTierTemplate.Cli/` | CLI |
+| `NTierTemplate/` | Domain — types, message contracts, DAO interfaces, entity behavior |
+| `NTierTemplate.Application/` | Application — use cases, application services, common IoC wiring |
+| `NTierTemplate.Data/` | Persistence — EF, DAO implementations, Identity |
+| `NTierTemplate.Api/` | HTTP API host |
+| `NTierTemplate.Cli/` | CLI host |
+| `NTierTemplate.Queue/` | RabbitMQ worker host |
 | `NTierTemplate.Web/` | Angular client |
+| `NTierTemplate.Test/` | Unit tests (Domain, Application) |
+
+## Layer Dependencies
+
+```
+  Api · Cli · Queue          entry-point hosts (IoC bootstrap per host)
+            │
+       Application           use cases + common ServiceCollection wiring
+            │
+          Data                 DAO implementations, EF, Identity
+            │
+         Domain                 types, message contracts, entity behavior
+
+Web ──HTTP──▶ Api
+```
+
+| Project | Project references |
+|---------|-------------------|
+| `NTierTemplate/` | (none) |
+| `NTierTemplate.Data/` | Domain |
+| `NTierTemplate.Application/` | Domain, Data |
+| `NTierTemplate.Api/` | Domain, Application |
+| `NTierTemplate.Cli/` | Domain, Application |
+| `NTierTemplate.Queue/` | Domain, Application |
+| `NTierTemplate.Test/` | Domain, Application |
+| `NTierTemplate.Web/` | *(HTTP only)* |
+
+Entry points must not reference **Data** directly. Application owns common IoC wiring. `NTierTemplate.Test/` sits outside the runtime graph — references Domain and Application only; see `testing.mdc`.

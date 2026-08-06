@@ -1,0 +1,37 @@
+---
+description: Unit test scope and conventions
+globs: "NTierTemplate.Test/**/*.cs"
+alwaysApply: false
+---
+
+# Unit Testing
+
+We use unit tests **sparingly**. All non-configuration logic belongs in **Domain** and **Application** — that is what we test.
+
+## Test Project
+
+- `NTierTemplate.Test/` references **Domain** and **Application** only
+- Do not reference Data, Api, Cli, Queue, or Web from the test project
+
+## What to Test
+
+- Domain entity behavior and value-object logic
+- Application service use-case orchestration (mock DAO interfaces from Domain)
+
+## What Not to Test
+
+- Configuration and wiring: IoC registration, `Program.cs`, host bootstrap, `appsettings`, EF configuration, DAO implementations, migrations
+- Entry-point hosts (Api, Cli, Queue) — thin hosts with no business logic
+- Data layer persistence — exercised through integration/manual verification, not unit tests here
+
+## Conventions
+
+- Mock DAO interfaces (`IUserDao`, etc.) when testing Application services — never mock EF or Identity types
+- Add tests only when they protect meaningful behavior; do not test trivial getters or framework boilerplate
+- Keep test types and methods domain-named, matching the code under test
+
+## Related Rules
+
+- `general-guidelines.mdc` — solution structure and layer dependencies
+- `application-layer.mdc` — use-case logic under test
+- `dao-pattern.mdc` — DAO interfaces are the persistence boundary for mocks

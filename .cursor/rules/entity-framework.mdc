@@ -31,7 +31,7 @@ dotnet ef migrations add <MigrationName> \
 
 ## Materialized Views
 
-- Create only the entity class in the Data layer (no DTO in domain, no repository)
+- Create only the entity class in the Data layer (no DTO in domain, no DAO)
 - Materialized views are read-only query targets
 
 ## Design-Time

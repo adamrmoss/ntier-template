@@ -14,12 +14,55 @@ alwaysApply: true
 
 Projects live at the repo root, one per layer:
 
-| Project | Role |
-|---------|------|
-| `NTierTemplate/` | Domain models, domain services, repository interfaces |
-| `NTierTemplate.Data/` | EF entities, DbContext, repository implementations, Identity persistence |
-| `NTierTemplate.Api/` | ASP.NET Core HTTP API |
-| `NTierTemplate.Cli/` | Command-line entry points |
-| `NTierTemplate.Web/` | Angular client |
+| Project                      | Role                                                              |
+|------------------------------|-------------------------------------------------------------------|
+| `NTierTemplate/`             | Shared types, message contracts, domain entities, DAO interfaces  |
+| `NTierTemplate.Application/` | Use-case orchestration, application services, common IoC wiring   |
+| `NTierTemplate.Data/`        | EF entities, DbContext, DAO implementations, Identity persistence |
+| `NTierTemplate.Api/`         | ASP.NET Core HTTP API (host + IoC bootstrap)                      |
+| `NTierTemplate.Cli/`         | Command-line entry points (host + IoC bootstrap)                  |
+| `NTierTemplate.Queue/`       | RabbitMQ worker host (host + IoC bootstrap)                       |
+| `NTierTemplate.Web/`         | Angular client                                                    |
+| `NTierTemplate.Test/`        | Unit tests — references Domain and Application only               |
 
 Within each project, organize by **domain**, not technical folders (`controllers/`, `services/`, `views/`, etc.).
+
+All **non-configuration logic** lives in Domain and Application. Entry points, Data, and hosts are configuration and wiring — not unit-tested.
+
+## Layer Dependencies
+
+Project references stack upward from **Domain** at the bottom. `NTierTemplate.Web/` is outside this graph — it talks to the API over HTTP only.
+
+Each entry-point host (`Api`, `Cli`, `Queue`) bootstraps its own IoC container. **Application owns the common wiring** — shared `ServiceCollection` extension methods that register Data, DAOs, and application services. Hosts call Application's registration; they do not duplicate it.
+
+```
+    Api · Cli · Queue        entry-point hosts (IoC bootstrap per host)
+            │
+       Application           use cases + common ServiceCollection wiring
+            │
+           Data              DAO implementations, EF, Identity
+            │
+          Domain             types, message contracts, entity behavior
+
+Web ──HTTP──▶ Api            (outside project-reference graph)
+```
+
+| Project                      | Project references          |
+|------------------------------|-----------------------------|
+| `NTierTemplate/`             | (none)                      |
+| `NTierTemplate.Data/`        | Domain                      |
+| `NTierTemplate.Application/` | Domain, Data                |
+| `NTierTemplate.Api/`         | Domain, Application         |
+| `NTierTemplate.Cli/`         | Domain, Application         |
+| `NTierTemplate.Queue/`       | Domain, Application         |
+| `NTierTemplate.Test/`        | Domain, Application         |
+| `NTierTemplate.Web/`         | *(none — HTTP client only)* |
+
+Entry points must not take a project reference to **Data**. They consume behavior through Application services and shared types from Domain — not EF types, DAO implementations, or Identity managers.
+
+## Related Rules
+
+- `application-layer.mdc` — use cases, IoC wiring, CQRS
+- `queue-layer.mdc` — worker host and RabbitMQ
+- `entity-architecture.mdc`, `dao-pattern.mdc` — persistence boundaries
+- `testing.mdc` — unit test scope and conventions

@@ -1,0 +1,47 @@
+---
+description: Application services, common IoC wiring, use-case orchestration, and CQRS
+globs: "NTierTemplate.Application/**/*.cs,NTierTemplate.Api/**/*.cs,NTierTemplate.Cli/**/*.cs,NTierTemplate.Queue/**/*.cs"
+alwaysApply: false
+---
+
+# Application Layer
+
+`NTierTemplate.Application/` owns **use-case orchestration** and **common IoC wiring** — the shared `ServiceCollection` registration that entry-point hosts reuse.
+
+## What Lives Here
+
+- Application service interfaces and implementations (`IUserService`, `UserService`)
+- Common DI extension methods (e.g. `AddNTierTemplateApplication`, `AddNTierTemplateData`) called by Api, Cli, and Queue hosts
+- Use-case workflows that span aggregates or multiple DAOs
+- Transaction boundary decisions for a use case
+
+## What Does Not Live Here
+
+- HTTP/CLI/RabbitMQ host wiring (entry-point projects bootstrap IoC but do not duplicate Application's registration)
+- EF entity class definitions, DbContext configuration, DAO implementations, Identity managers (authored in `NTierTemplate.Data/`)
+- Shared types and message contracts (`NTierTemplate/`)
+
+Application **project-references** Data and registers DAO implementations via common wiring. Application services orchestrate through **domain types and DAO interfaces** — not EF entities, DbContext, or Identity managers directly.
+
+## IoC
+
+- Each host (`Api`, `Cli`, `Queue`) builds its own service provider
+- Hosts call Application's shared registration extensions — do not copy-paste DI setup across hosts
+- Host-specific services (Kestrel, CLI parser, RabbitMQ consumer) are registered in the host project on top of Application's common wiring
+
+## CQRS
+
+- **Queries**: Api (and Cli when appropriate) call Application services **directly** and return results synchronously
+- **Commands / side effects**: Api and Cli **may** call Application directly, but **usually enqueue a message** for `NTierTemplate.Queue/` to process asynchronously
+- Keep query paths read-focused; keep command paths write-focused. Share types through Domain, not through Data
+
+## Entry Point Rules
+
+- Api, Cli, and Queue resolve Application service interfaces — not DAO interfaces, `UserManager`, or `NTierTemplateDbContext`
+- JWT token issuance stays in the auth layer (`NTierTemplate.Api/`)
+
+## Related Rules
+
+- `entity-architecture.mdc` — domain vs EF entity split
+- `dao-pattern.mdc` — DAO placement
+- `queue-layer.mdc` — enqueue and worker processing

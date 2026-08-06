@@ -9,8 +9,8 @@ alwaysApply: false
 - Prefer explicit `public`, `protected`, or `private` access modifiers on types and members
 - Avoid `internal`, `protected internal`, and default (unspecified) access
 - Always use explicit `this.` to reference instance members (methods and properties)
-- **Primary constructor parameters** are an exception: they are not promoted to instance members. Their scope is closure-like — captured from the constructor and in scope for the entire class body. Reference them by parameter name only (e.g. `userRepository`), never with `this.` (e.g. `this.userRepository` is wrong and can cause build errors)
-- Do **not** assign primary constructor parameters to private fields when passing them through unchanged (e.g. `private readonly IUserRepository userRepository = userRepository;` is redundant). Only capture to a field when transforming the value (e.g. `private readonly JwtOptions options = jwtOptions.Value;`)
+- **Primary constructor parameters** are an exception: they are not promoted to instance members. Their scope is closure-like — captured from the constructor and in scope for the entire class body. Reference them by parameter name only (e.g. `userDao`), never with `this.` (e.g. `this.userDao` is wrong and can cause build errors)
+- Do **not** assign primary constructor parameters to private fields when passing them through unchanged (e.g. `private readonly IUserDao userDao = userDao;` is redundant). Only capture to a field when transforming the value (e.g. `private readonly JwtOptions options = jwtOptions.Value;`)
 - Always use braces `{ }` for all control structures, even single-line blocks
 - Add line breaks between logical groups of code for readability
 - Keep each logical operation visually separate from others

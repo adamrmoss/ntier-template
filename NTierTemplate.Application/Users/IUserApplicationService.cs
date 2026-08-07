@@ -137,4 +137,32 @@ public interface IUserApplicationService
         string newPassword,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Issue a new refresh token for a signed-in user.
+    /// </summary>
+    /// <param name="userId">The user ID.</param>
+    /// <param name="refreshTokenDays">Days until the refresh token expires.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The raw refresh token.</returns>
+    Task<string> IssueRefreshTokenAsync(
+        int userId,
+        int refreshTokenDays,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Validate and revoke a refresh token, returning the associated user ID when valid.
+    /// </summary>
+    /// <param name="rawToken">The raw refresh token.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The user ID when valid; otherwise null.</returns>
+    Task<int?> RedeemRefreshTokenAsync(string rawToken, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Revoke a refresh token when it exists and has not already been revoked.
+    /// </summary>
+    /// <param name="rawToken">The raw refresh token.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task RevokeRefreshTokenAsync(string rawToken, CancellationToken cancellationToken = default);
 }

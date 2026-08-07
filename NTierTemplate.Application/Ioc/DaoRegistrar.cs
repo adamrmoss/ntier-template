@@ -15,5 +15,6 @@ public static class DaoRegistrar
     public static void RegisterDaos(this IServiceCollection serviceCollection)
     {
         serviceCollection.AddScoped<IUserDao, UserDao>();
+        serviceCollection.AddScoped<IRefreshTokenDao, RefreshTokenDao>();
     }
 }

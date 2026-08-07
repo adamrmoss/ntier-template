@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using NTierTemplate.Application.Auth;
+using NTierTemplate.Application.Email;
 using NTierTemplate.Application.Users;
 
 namespace NTierTemplate.Application.Ioc;
@@ -14,6 +16,9 @@ public static class ServiceRegistrar
     /// <param name="serviceCollection">The service collection to register services with.</param>
     public static void RegisterServices(this IServiceCollection serviceCollection)
     {
+        serviceCollection.AddScoped<IEmailClient, SmtpEmailClient>();
+        serviceCollection.AddScoped<IAuthEmailService, AuthEmailService>();
+        serviceCollection.AddScoped<IAuthApplicationService, AuthApplicationService>();
         serviceCollection.AddScoped<IUserApplicationService, UserApplicationService>();
     }
 }

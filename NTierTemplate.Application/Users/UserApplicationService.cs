@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using NTierTemplate.Data.Users;
 using NTierTemplate.Users;
 
@@ -6,7 +8,11 @@ namespace NTierTemplate.Application.Users;
 /// <summary>
 /// Application use cases for account users.
 /// </summary>
-public class UserApplicationService(IUserDao userDao, IPrincipalContainer principalContainer)
+public class UserApplicationService(
+    IUserDao userDao,
+    IRefreshTokenDao refreshTokenDao,
+    IPrincipalContainer principalContainer
+)
     : IUserApplicationService
 {
     /// <inheritdoc />
@@ -160,5 +166,58 @@ public class UserApplicationService(IUserDao userDao, IPrincipalContainer princi
     )
     {
         return userDao.ResetPasswordAsync(email, token, newPassword, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<string> IssueRefreshTokenAsync(
+        int userId,
+        int refreshTokenDays,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var rawToken = GenerateSecureToken();
+        var tokenHash = HashToken(rawToken);
+        var expiresAt = DateTime.UtcNow.AddDays(refreshTokenDays);
+
+        await refreshTokenDao.CreateAsync(userId, tokenHash, expiresAt, cancellationToken);
+
+        return rawToken;
+    }
+
+    /// <inheritdoc />
+    public async Task<int?> RedeemRefreshTokenAsync(
+        string rawToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var tokenHash = HashToken(rawToken);
+        var userId = await refreshTokenDao.FindValidUserIdByTokenHashAsync(tokenHash, cancellationToken);
+
+        if (userId == null)
+        {
+            return null;
+        }
+
+        await refreshTokenDao.RevokeByTokenHashAsync(tokenHash, cancellationToken);
+
+        return userId;
+    }
+
+    /// <inheritdoc />
+    public Task RevokeRefreshTokenAsync(string rawToken, CancellationToken cancellationToken = default)
+    {
+        return refreshTokenDao.RevokeByTokenHashAsync(HashToken(rawToken), cancellationToken);
+    }
+
+    private static string GenerateSecureToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(64);
+        return Convert.ToBase64String(bytes);
+    }
+
+    private static string HashToken(string token)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes);
     }
 }

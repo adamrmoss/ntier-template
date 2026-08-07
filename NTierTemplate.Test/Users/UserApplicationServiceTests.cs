@@ -10,6 +10,7 @@ namespace NTierTemplate.Test.Users;
 public class UserApplicationServiceTests
 {
     private Mock<IUserDao> userDao = null!;
+    private Mock<IRefreshTokenDao> refreshTokenDao = null!;
     private Mock<IPrincipalContainer> principalContainer = null!;
     private UserApplicationService service = null!;
 
@@ -17,8 +18,13 @@ public class UserApplicationServiceTests
     public void SetUp()
     {
         this.userDao = new Mock<IUserDao>();
+        this.refreshTokenDao = new Mock<IRefreshTokenDao>();
         this.principalContainer = new Mock<IPrincipalContainer>();
-        this.service = new UserApplicationService(this.userDao.Object, this.principalContainer.Object);
+        this.service = new UserApplicationService(
+            this.userDao.Object,
+            this.refreshTokenDao.Object,
+            this.principalContainer.Object
+        );
     }
 
     [Test]

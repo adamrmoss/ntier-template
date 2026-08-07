@@ -17,6 +17,7 @@
         "@angular/forms": "21.2.x",
         "@angular/material": "21.2.x",
         "@angular/platform-browser": "21.2.x",
+        "@angular/animations": "21.2.x",
         "@angular/router": "21.2.x",
         "@ngrx/effects": "21.1.x",
         "@ngrx/store": "21.1.x",

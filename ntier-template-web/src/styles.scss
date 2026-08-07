@@ -1,5 +1,43 @@
 @use '@angular/material' as mat;
 
+$metallic-steel-palette: (
+    0: #000000,
+    10: #161a1f,
+    20: #2b3138,
+    25: #363c44,
+    30: #414850,
+    35: #4d545d,
+    40: #59606a,
+    50: #727983,
+    60: #8b929f,
+    70: #a6acb8,
+    80: #c1c7d2,
+    90: #dde3ed,
+    95: #ecf1f9,
+    98: #f6f8fc,
+    99: #fcfdff,
+    100: #ffffff,
+);
+
+$metallic-silver-palette: (
+    0: #000000,
+    10: #191c21,
+    20: #2e3137,
+    25: #393c43,
+    30: #45484f,
+    35: #50545b,
+    40: #5c6067,
+    50: #757981,
+    60: #8f939b,
+    70: #a9adb5,
+    80: #c5c8d0,
+    90: #e1e4eb,
+    95: #eff2f8,
+    98: #f8f9fc,
+    99: #fdfdff,
+    100: #ffffff,
+);
+
 html
 {
     height: 100%;
@@ -7,8 +45,8 @@ html
     @include mat.theme(
         (
             color: (
-                primary: mat.$azure-palette,
-                tertiary: mat.$blue-palette,
+                primary: $metallic-steel-palette,
+                tertiary: $metallic-silver-palette,
             ),
             density: 0,
             typography: Roboto,
@@ -18,7 +56,7 @@ html
 
 body
 {
-    background-color: var(--mat-sys-surface);
+    background-color: #e8eaed;
     color: var(--mat-sys-on-surface);
     color-scheme: light;
     font: var(--mat-sys-body-medium);

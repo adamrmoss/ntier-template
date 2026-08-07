@@ -81,6 +81,9 @@
                 },
                 "serve": {
                     "builder": "@angular/build:dev-server",
+                    "options": {
+                        "port": 8240
+                    },
                     "configurations": {
                         "production": {
                             "buildTarget": "ntier-template-web:build:production"

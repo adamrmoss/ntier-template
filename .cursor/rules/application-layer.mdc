@@ -10,7 +10,7 @@ alwaysApply: false
 
 ## What Lives Here
 
-- Application service interfaces and implementations (`IUserService`, `UserService`)
+- Application service interfaces and implementations (`IUserApplicationService`, `UserApplicationService`)
 - Common DI extension methods (e.g. `AddNTierTemplateApplication`, `AddNTierTemplateData`) called by Api, Cli, and Queue hosts
 - Use-case workflows that span aggregates or multiple DAOs
 - Transaction boundary decisions for a use case

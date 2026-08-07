@@ -16,7 +16,7 @@ We standardize on **Dao** (not Repository) for data-access abstractions.
 - Password hashing, role assignment, and password validation belong in DAO implementations (via `UserManager` / `RoleManager` inside `NTierTemplate.Data/`)
 - Email lookups in DAOs must use `UserManager.FindByEmailAsync` (or equivalent Identity APIs), not manual `NormalizedEmail` normalization
 - JWT token issuance stays in the auth layer (`NTierTemplate.Api/`); refresh-token persistence belongs in Application (via DAOs), not in Api
-- Api, Cli, and Queue call Application services (`IUserService`), not DAOs or `UserManager` directly
+- Api, Cli, and Queue call Application services (`IUserApplicationService`), not DAOs or `UserManager` directly
 - Application services call DAO interfaces — never EF types or Identity managers
 
 ## Related Rules

@@ -9,7 +9,7 @@ Favor **classic object-oriented design** (GoF and Fowler pattern awareness, DDD 
 
 ## Naming vs Pattern Awareness
 
-- **Type names** express **domain responsibility** (`CliCommand`, `UserDao`, `UserService`) — not GoF pattern names (`TemplateMethodCommand`, `UserFactory`)
+- **Type names** express **domain responsibility** (`CliCommand`, `UserDao`, `UserApplicationService`) — not GoF pattern names (`TemplateMethodCommand`, `UserFactory`)
 - **Pattern awareness** guides structure: recognize when Template Method, DAO, Factory, Aggregate, Strategy, etc. fit, then name types for what they *do* in the domain
 - Fowler and GoF vocabulary is useful in design discussion and comments — not as a substitute for domain naming in code
 

@@ -1,4 +1,16 @@
 #!/usr/bin/env bash
+# Create local settings files from committed example.*.json templates.
+#
+# Copies each example file to the same directory without the "example." prefix:
+#   example.dbsettings.json  -> dbsettings.json
+#   example.clisettings.json -> clisettings.json
+#   example.appsettings.json -> appsettings.json
+#
+# Existing targets are left unchanged. Edit the new files with local secrets
+# before running the API, CLI, or EF migrations.
+#
+# Usage:
+#   ./scripts/create-settings.sh
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -25,6 +37,7 @@ while IFS= read -r -d '' example_file; do
     echo "Created $target_file from $base"
     created=$((created + 1))
 done < <(
+    # Skip build artifacts and dependencies; match any example.*.json under the repo.
     find "$repo_root" \
         \( -path '*/node_modules/*' -o -path '*/bin/*' -o -path '*/obj/*' -o -path '*/.git/*' \) -prune \
         -o -name 'example.*.json' -type f -print0

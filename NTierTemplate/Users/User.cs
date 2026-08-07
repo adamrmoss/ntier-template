@@ -54,7 +54,7 @@ public class User
     }
 
     /// <summary>
-    /// Whether the user is a publisher administrator.
+    /// Whether the user is an administrator.
     /// </summary>
     public bool IsAdmin
     {

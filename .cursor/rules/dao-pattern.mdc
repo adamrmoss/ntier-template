@@ -6,11 +6,10 @@ alwaysApply: false
 
 # DAO Pattern
 
-We standardize on **Dao** (not Repository) for domain data-access abstractions.
+We standardize on **Dao** (not Repository) for data-access abstractions.
 
 - Each regular entity gets its own DAO interface and implementation
-- DAO **interfaces** go in `NTierTemplate/` (domain project) — e.g. `IUserDao`
-- DAO **implementations** go in `NTierTemplate.Data/` (data project) — e.g. `UserDao`
+- DAO **interfaces and implementations** both live in `NTierTemplate.Data/` — e.g. `IUserDao` / `UserDao`
 - DAOs bridge EF/Identity persistence models and domain models at CRUD and query level
 - Materialized views and read-only query tables do **not** need DAOs
 - Never add query methods to a DAO unless they belong to that domain

@@ -21,7 +21,7 @@ alwaysApply: false
 - EF entity class definitions, DbContext configuration, DAO implementations, Identity managers (authored in `NTierTemplate.Data/`)
 - Shared types and message contracts (`NTierTemplate/`)
 
-Application **project-references** Data and registers DAO implementations via common wiring. Application services orchestrate through **domain types and DAO interfaces** — not EF entities, DbContext, or Identity managers directly.
+Application **project-references** Data and registers DAO implementations via common wiring. Application services orchestrate through **domain types** and **DAO interfaces from Data** — not EF entities, DbContext, or Identity managers directly.
 
 ## IoC
 

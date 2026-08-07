@@ -19,13 +19,13 @@ Domain holds **shared types and message contracts** — not use-case orchestrati
 
 ## Rules
 
-- **Application services** (`UserService`, etc.) live in `NTierTemplate.Application/`; they use domain types and DAO interfaces only
+- **Application services** (`UserService`, etc.) live in `NTierTemplate.Application/`; they use domain types and DAO interfaces from `NTierTemplate.Data/`
 - When investigating database issues or schema: look at EF entities in `NTierTemplate.Data/`, not domain entities
 - When writing LINQ queries or EF Core code: reference EF entities in `NTierTemplate.Data/`
 - DAOs translate between EF entities and domain entities at CRUD and query level
 - ASP.NET Core Identity persistence types (`ApplicationUser`, `ApplicationRole`) live in `NTierTemplate.Data/`; map to domain `User` in DAOs
 - Identity managers (`UserManager`, `RoleManager`) are used inside DAO implementations in `NTierTemplate.Data/`, not in Application services, Api controllers, Cli handlers, or Queue consumers
-- Api, Cli, and Queue resolve Application service interfaces (`IUserService`, etc.), not DAO interfaces or Identity types
+- Api, Cli, and Queue resolve Application service interfaces (`IUserService`, etc.), not DAO interfaces, Identity types, or `NTierTemplateDbContext`
 
 ## Related Rules
 

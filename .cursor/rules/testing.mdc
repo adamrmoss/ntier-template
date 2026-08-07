@@ -10,13 +10,13 @@ We use unit tests **sparingly**. All non-configuration logic belongs in **Domain
 
 ## Test Project
 
-- `NTierTemplate.Test/` references **Domain** and **Application** only
-- Do not reference Data, Api, Cli, Queue, or Web from the test project
+- `NTierTemplate.Test/` references **Domain**, **Application**, and **Data** (Data is referenced only for DAO interface types used in mocks)
+- Do not reference Api, Cli, Queue, or Web from the test project
 
 ## What to Test
 
 - Domain entity behavior and value-object logic
-- Application service use-case orchestration (mock DAO interfaces from Domain)
+- Application service use-case orchestration (mock DAO interfaces from `NTierTemplate.Data/`)
 
 ## What Not to Test
 

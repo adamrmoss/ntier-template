@@ -39,6 +39,9 @@ ScaffoldingReadMe.txt
 # dotenv environment variables file
 .env
 
+# Local database credentials
+NTierTemplate.Data/dbsettings.json
+
 # Others
 ~$*
 *~

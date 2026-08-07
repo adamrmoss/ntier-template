@@ -34,14 +34,14 @@ Project rules live in `.cursor/rules/`. Rules with `alwaysApply: true` are inclu
 
 | Project | Role |
 |---------|------|
-| `NTierTemplate/` | Domain — types, message contracts, DAO interfaces, entity behavior |
+| `NTierTemplate/` | Domain — types, message contracts, entity behavior |
 | `NTierTemplate.Application/` | Application — use cases, application services, common IoC wiring |
-| `NTierTemplate.Data/` | Persistence — EF, DAO implementations, Identity |
+| `NTierTemplate.Data/` | Persistence — EF, DAO interfaces and implementations, Identity |
 | `NTierTemplate.Api/` | HTTP API host |
 | `NTierTemplate.Cli/` | CLI host |
 | `NTierTemplate.Queue/` | RabbitMQ worker host |
 | `ntier-template-web/` | Angular client (Material, NgRx) |
-| `NTierTemplate.Test/` | Unit tests (Domain, Application) |
+| `NTierTemplate.Test/` | Unit tests (Domain, Application, Data) |
 
 ## Layer Dependencies
 
@@ -50,7 +50,7 @@ Project rules live in `.cursor/rules/`. Rules with `alwaysApply: true` are inclu
             │
        Application           use cases + common ServiceCollection wiring
             │
-          Data                 DAO implementations, EF, Identity
+          Data                 DAO interfaces and implementations, EF, Identity
             │
          Domain                 types, message contracts, entity behavior
 
@@ -65,7 +65,7 @@ Web ──HTTP──▶ Api
 | `NTierTemplate.Api/` | Domain, Application |
 | `NTierTemplate.Cli/` | Domain, Application |
 | `NTierTemplate.Queue/` | Domain, Application |
-| `NTierTemplate.Test/` | Domain, Application |
+| `NTierTemplate.Test/` | Domain, Application, Data |
 | `ntier-template-web/` | *(HTTP only)* |
 
 Entry points must not reference **Data** directly. Application owns common IoC wiring. `NTierTemplate.Test/` sits outside the runtime graph — references Domain and Application only; see `testing.mdc`.

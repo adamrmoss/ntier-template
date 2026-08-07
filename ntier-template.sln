@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTierTemplate", "NTierTemplate\NTierTemplate.csproj", "{DC91FE4C-4518-4B7E-BA8B-48BDBD7420B3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTierTemplate.Data", "NTierTemplate.Data\NTierTemplate.Data.csproj", "{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,18 @@ Global
 		{DC91FE4C-4518-4B7E-BA8B-48BDBD7420B3}.Release|x64.Build.0 = Release|Any CPU
 		{DC91FE4C-4518-4B7E-BA8B-48BDBD7420B3}.Release|x86.ActiveCfg = Release|Any CPU
 		{DC91FE4C-4518-4B7E-BA8B-48BDBD7420B3}.Release|x86.Build.0 = Release|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Debug|x64.Build.0 = Debug|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Debug|x86.Build.0 = Debug|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Release|x64.ActiveCfg = Release|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Release|x64.Build.0 = Release|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Release|x86.ActiveCfg = Release|Any CPU
+		{91E4DB46-D98A-41F0-8F43-3F4C18F2FC4C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

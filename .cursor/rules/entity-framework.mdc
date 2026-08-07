@@ -37,4 +37,4 @@ dotnet ef migrations add <MigrationName> \
 ## Design-Time
 
 - Use `NTierTemplateDbContextFactory` (reads `dbsettings.json`) for design-time migrations
-- Copy `sample.dbsettings.json` to `dbsettings.json` with a real connection string first
+- Run `scripts/create-dbsettings.sh` to create `dbsettings.json` from `example.dbsettings.json`, then set the real password

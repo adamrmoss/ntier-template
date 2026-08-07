@@ -11,7 +11,7 @@ Project rules live in `.cursor/rules/`. Rules with `alwaysApply: true` are inclu
 | `error-ownership-and-recovery.mdc` | Own generated-code failures and recover without burdening the user |
 | `general-guidelines.mdc` | Core guidelines — answering, paths, changes, solution structure |
 | `linq-to-ef.mdc` | No in-memory collections or untranslatable methods in `IQueryable` |
-| `shell-commands.mdc` | Propose shell commands; do not run them |
+| `shell-commands.mdc` | Propose shell/dotnet commands; do not run them or scaffold projects via tooling |
 
 ## File-Specific Rules
 

@@ -6,3 +6,18 @@ alwaysApply: true
 # Shell Commands
 
 - Never run shell or CLI commands; propose commands for the user to run at their discretion
+
+## .NET Project Scaffolding
+
+When the user needs a new project, package, or solution change created with the `dotnet` CLI, **provide the commands for them to run** — do not scaffold it yourself by writing `.csproj` files, running `dotnet new`, or adding projects to the solution.
+
+Examples to propose (user runs these):
+
+```bash
+dotnet new worker -n NTierTemplate.Queue -f net10.0 -o NTierTemplate.Queue
+dotnet sln ntier-template.sln add NTierTemplate.Queue/NTierTemplate.Queue.csproj
+dotnet add NTierTemplate.Queue/NTierTemplate.Queue.csproj reference NTierTemplate.Application/NTierTemplate.Application.csproj
+dotnet add NTierTemplate.Queue/NTierTemplate.Queue.csproj package RabbitMQ.Client --version 7.1.2
+```
+
+After the user has created the project, help with harmonizing code, wiring, and documentation — not with replacing the `dotnet` tooling step.

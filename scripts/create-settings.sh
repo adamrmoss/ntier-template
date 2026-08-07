@@ -4,10 +4,11 @@
 # Copies each example file to the same directory without the "example." prefix:
 #   example.dbsettings.json  -> dbsettings.json
 #   example.clisettings.json -> clisettings.json
+#   example.queuesettings.json -> queuesettings.json
 #   example.appsettings.json -> appsettings.json
 #
 # Existing targets are left unchanged. Edit the new files with local secrets
-# before running the API, CLI, or EF migrations.
+# before running the API, CLI, queue worker, or EF migrations.
 #
 # Usage:
 #   ./scripts/create-settings.sh

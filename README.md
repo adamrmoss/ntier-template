@@ -2,6 +2,24 @@
 
 N-tier enterprise application: Angular client, ASP.NET Core API, CLI, and RabbitMQ worker queue.
 
+```
+                    ┌──────────────┐
+                    │ Presentation │
+                    └──────────────┘
+           ┌─────────────────────────────────┐
+           │ Entry hosts (Api · Cli · Queue) │
+           └─────────────────────────────────┘
+        ┌───────────────────────────────────────┐
+        │             Application               │
+        └───────────────────────────────────────┘
+    ┌───────────────────────────────────────────────┐
+    │                    Data                       │
+    └───────────────────────────────────────────────┘    
+┌───────────────────────────────────────────────────────┐
+│                       Domain                          │
+└───────────────────────────────────────────────────────┘
+```
+
 ## Solution Layout
 
 | Project | Role |
@@ -108,9 +126,69 @@ Create local settings files from committed examples (`example.*.json` → matchi
 
 Edit the generated files with local values — for example, set the real password in `NTierTemplate.Data/dbsettings.json`.
 
-After the API project exists, generate the initial migration:
+Apply migrations:
 
 ```bash
-dotnet ef migrations add InitialCreate
-dotnet ef database update
+dotnet ef migrations add InitialCreate \
+  --project NTierTemplate.Data/NTierTemplate.Data.csproj \
+  --startup-project NTierTemplate.Api/NTierTemplate.Api.csproj
+
+dotnet ef database update \
+  --project NTierTemplate.Data/NTierTemplate.Data.csproj \
+  --startup-project NTierTemplate.Api/NTierTemplate.Api.csproj
 ```
+
+## RabbitMQ Setup (Ubuntu)
+
+Install and start RabbitMQ:
+
+```bash
+sudo apt update
+sudo apt install -y rabbitmq-server
+sudo systemctl enable --now rabbitmq-server
+```
+
+Optional: enable the management UI (http://localhost:15672):
+
+```bash
+sudo rabbitmq-plugins enable rabbitmq_management
+```
+
+Create a dedicated broker user (replace `your-password` with a strong password):
+
+```bash
+sudo rabbitmqctl add_user ntier your-password
+sudo rabbitmqctl set_permissions -p / ntier ".*" ".*" ".*"
+```
+
+Verify the broker is running:
+
+```bash
+sudo rabbitmqctl status
+```
+
+## Queue Worker
+
+The queue host (`NTierTemplate.Queue/`) runs as a .NET worker (`Microsoft.Extensions.Hosting`) and consumes messages from RabbitMQ. It bootstraps Application services the same way as the API and CLI.
+
+Ensure local settings exist (includes `RabbitMq` and database connection sections):
+
+```bash
+./scripts/create-settings.sh
+```
+
+Edit `NTierTemplate.Queue/queuesettings.json` with your MySQL and RabbitMQ credentials.
+
+Run the worker:
+
+```bash
+./scripts/queue.sh
+```
+
+Or directly:
+
+```bash
+dotnet run --project NTierTemplate.Queue/NTierTemplate.Queue.csproj
+```
+
+The worker declares a durable queue named in `RabbitMq:QueueName` (default `ntier-template`) and waits for messages. Command handlers deserialize domain contracts and call Application services as they are added.

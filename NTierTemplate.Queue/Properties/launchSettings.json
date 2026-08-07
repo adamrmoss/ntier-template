@@ -1,0 +1,12 @@
+﻿{
+    "$schema": "https://json.schemastore.org/launchsettings.json",
+    "profiles": {
+        "NTierTemplate.Queue": {
+            "commandName": "Project",
+            "dotnetRunMessages": false,
+            "environmentVariables": {
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        }
+    }
+}

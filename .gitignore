@@ -42,6 +42,7 @@ ScaffoldingReadMe.txt
 # Local database credentials
 NTierTemplate.Data/dbsettings.json
 NTierTemplate.Cli/clisettings.json
+NTierTemplate.Queue/queuesettings.json
 
 # Others
 ~$*

@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 # Run the NTierTemplate.Queue RabbitMQ worker host.
 #
-# Usage:
-#   ./scripts/queue.sh
-#
 # Requires NTierTemplate.Queue/queuesettings.json (create via ./scripts/create-settings.sh)
 # and a running RabbitMQ broker (see README.md).
 set -euo pipefail

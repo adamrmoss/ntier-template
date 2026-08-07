@@ -12,11 +12,13 @@ public sealed class UnitOfWork(NTierTemplateDbContext dbContext) : IUnitOfWork, 
     /// <inheritdoc />
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
+        // Reuse an already-open transaction.
         if (this.transaction != null)
         {
             return;
         }
 
+        // Begin a new database transaction.
         this.transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
     }
 
@@ -25,10 +27,12 @@ public sealed class UnitOfWork(NTierTemplateDbContext dbContext) : IUnitOfWork, 
     {
         if (this.transaction == null)
         {
+            // Persist pending changes without an explicit transaction.
             await dbContext.SaveChangesAsync(cancellationToken);
             return;
         }
 
+        // Commit pending changes and the open transaction.
         await dbContext.SaveChangesAsync(cancellationToken);
         await this.transaction.CommitAsync(cancellationToken);
         await this.DisposeTransactionAsync();
@@ -42,6 +46,7 @@ public sealed class UnitOfWork(NTierTemplateDbContext dbContext) : IUnitOfWork, 
             return;
         }
 
+        // Roll back the open transaction and release it.
         await this.transaction.RollbackAsync(cancellationToken);
         await this.DisposeTransactionAsync();
     }
@@ -59,6 +64,7 @@ public sealed class UnitOfWork(NTierTemplateDbContext dbContext) : IUnitOfWork, 
             return;
         }
 
+        // Dispose the transaction and clear the field.
         await this.transaction.DisposeAsync();
         this.transaction = null;
     }

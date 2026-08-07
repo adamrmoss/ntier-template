@@ -26,11 +26,16 @@ export const appConfig: ApplicationConfig =
         ),
         provideHttpClient(withInterceptors([authInterceptor])),
         provideAnimationsAsync(),
-        provideAppInitializer(() => inject(AuthService).initialize()),
         provideAppInitializer(() => {
+            // Restore any persisted session before the app renders.
+            return inject(AuthService).initialize();
+        }),
+        provideAppInitializer(() => {
+            // Construct PageMetaService so its router subscription starts.
             inject(PageMetaService);
         }),
         provideAppInitializer(() => {
+            // Register self-hosted SVG icons before the first render.
             registerAppIcons(inject(MatIconRegistry), inject(DomSanitizer));
         }),
         provideStore(),

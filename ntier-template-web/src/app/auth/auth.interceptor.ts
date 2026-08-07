@@ -27,11 +27,13 @@ export const authInterceptor: HttpInterceptorFn = (request, next) =>
     const auth = inject(AuthService);
     const tokenStorage = inject(AuthTokenStorage);
 
+    // Skip auth endpoints that must not carry bearer tokens.
     if (isAuthExemptUrl(request.url))
     {
         return next(request);
     }
 
+    // Attach the access token when one is available.
     const accessToken = auth.accessToken ?? tokenStorage.readAccessToken();
     const authorizedRequest = accessToken
         ? request.clone({
@@ -44,19 +46,23 @@ export const authInterceptor: HttpInterceptorFn = (request, next) =>
     return next(authorizedRequest).pipe(
         catchError((error: unknown) =>
         {
+            // Propagate non-401 errors without retrying.
             if (!(error instanceof HttpErrorResponse) || error.status !== 401)
             {
                 return throwError(() => error);
             }
 
+            // Avoid refresh loops on auth endpoints.
             if (isAuthExemptUrl(request.url))
             {
                 return throwError(() => error);
             }
 
+            // Refresh tokens once and retry the original request.
             return from(auth.refreshTokens()).pipe(
                 switchMap((refreshed) =>
                 {
+                    // Clear the session when refresh fails.
                     if (!refreshed)
                     {
                         auth.clearSession();
@@ -65,12 +71,14 @@ export const authInterceptor: HttpInterceptorFn = (request, next) =>
 
                     const nextAccessToken = auth.accessToken ?? tokenStorage.readAccessToken();
 
+                    // Clear the session when no access token is available after refresh.
                     if (!nextAccessToken)
                     {
                         auth.clearSession();
                         return throwError(() => error);
                     }
 
+                    // Retry the original request with the new access token.
                     return next(request.clone({
                         setHeaders: {
                             Authorization: `Bearer ${nextAccessToken}`,

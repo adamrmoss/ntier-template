@@ -18,16 +18,19 @@ public class UserDao(
     /// <inheritdoc />
     public async Task<User[]> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        // Load persisted users ordered for display.
         var users = await dbContext.Users
             .OrderBy(user => user.DisplayName ?? user.Email)
             .ToArrayAsync(cancellationToken);
 
+        // Map EF entities to domain users with roles.
         return await this.MapUsersAsync(users, cancellationToken);
     }
 
     /// <inheritdoc />
     public async Task<User?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
+        // Load the user by primary key.
         var user = await dbContext.Users
             .SingleOrDefaultAsync(entity => entity.Id == id, cancellationToken);
 
@@ -36,12 +39,14 @@ public class UserDao(
             return null;
         }
 
+        // Map the EF entity to a domain user.
         return await this.MapUserAsync(user, cancellationToken);
     }
 
     /// <inheritdoc />
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
+        // Resolve the account by normalized email.
         var user = await userManager.FindByEmailAsync(email);
 
         if (user == null)
@@ -49,6 +54,7 @@ public class UserDao(
             return null;
         }
 
+        // Map the EF entity to a domain user.
         return await this.MapUserAsync(user, cancellationToken);
     }
 
@@ -58,6 +64,7 @@ public class UserDao(
         CancellationToken cancellationToken = default
     )
     {
+        // Resolve the account from the authenticated principal.
         var user = await userManager.GetUserAsync(principal);
 
         if (user == null)
@@ -65,12 +72,14 @@ public class UserDao(
             return null;
         }
 
+        // Map the EF entity to a domain user.
         return await this.MapUserAsync(user, cancellationToken);
     }
 
     /// <inheritdoc />
     public async Task EnsureDefaultRolesExistAsync(CancellationToken cancellationToken = default)
     {
+        // Ensure baseline application roles exist.
         await this.EnsureRoleExistsAsync("Admin");
         await this.EnsureRoleExistsAsync("User");
     }
@@ -81,6 +90,7 @@ public class UserDao(
         CancellationToken cancellationToken = default
     )
     {
+        // Build the Identity user from the registration request.
         var user = new ApplicationUser
         {
             UserName = request.Email.Trim(),
@@ -91,6 +101,7 @@ public class UserDao(
             EmailConfirmed = false,
         };
 
+        // Persist the account with the supplied password.
         var createResult = await userManager.CreateAsync(user, request.Password);
 
         if (!createResult.Succeeded)
@@ -102,9 +113,11 @@ public class UserDao(
             };
         }
 
+        // Assign the default User role.
         await this.EnsureRoleExistsAsync("User");
         await userManager.AddToRoleAsync(user, "User");
 
+        // Return the created domain user.
         var domainUser = await this.MapUserAsync(user, cancellationToken);
 
         return new UserCreateResult
@@ -121,8 +134,10 @@ public class UserDao(
         CancellationToken cancellationToken = default
     )
     {
+        // Ensure baseline roles exist before assignment.
         await this.EnsureDefaultRolesExistAsync(cancellationToken);
 
+        // Build a pre-confirmed administrator account.
         var user = new ApplicationUser
         {
             UserName = email,
@@ -130,6 +145,7 @@ public class UserDao(
             EmailConfirmed = true,
         };
 
+        // Persist the account with the supplied password.
         var createResult = await userManager.CreateAsync(user, password);
 
         if (!createResult.Succeeded)
@@ -141,9 +157,11 @@ public class UserDao(
             };
         }
 
+        // Assign Admin and User roles.
         await userManager.AddToRoleAsync(user, "Admin");
         await userManager.AddToRoleAsync(user, "User");
 
+        // Return the created domain user.
         var domainUser = await this.MapUserAsync(user, cancellationToken);
 
         return new UserCreateResult
@@ -160,6 +178,7 @@ public class UserDao(
         CancellationToken cancellationToken = default
     )
     {
+        // Resolve the account by email.
         var user = await userManager.FindByEmailAsync(email);
 
         if (user == null)
@@ -167,6 +186,7 @@ public class UserDao(
             return null;
         }
 
+        // Verify the supplied password.
         var passwordValid = await userManager.CheckPasswordAsync(user, password);
 
         if (!passwordValid)
@@ -174,11 +194,13 @@ public class UserDao(
             return null;
         }
 
+        // Require a confirmed email before sign-in.
         if (!user.EmailConfirmed)
         {
             return null;
         }
 
+        // Return the validated domain user.
         return await this.MapUserAsync(user, cancellationToken);
     }
 
@@ -189,6 +211,7 @@ public class UserDao(
         CancellationToken cancellationToken = default
     )
     {
+        // Resolve the account by email.
         var user = await userManager.FindByEmailAsync(email);
 
         if (user == null)
@@ -196,6 +219,7 @@ public class UserDao(
             return false;
         }
 
+        // Verify the supplied password.
         return await userManager.CheckPasswordAsync(user, password);
     }
 
@@ -213,6 +237,7 @@ public class UserDao(
         CancellationToken cancellationToken = default
     )
     {
+        // Resolve the account by id.
         var user = await userManager.FindByIdAsync(userId.ToString());
 
         if (user == null)
@@ -220,6 +245,7 @@ public class UserDao(
             return null;
         }
 
+        // Generate an Identity email confirmation token.
         return await userManager.GenerateEmailConfirmationTokenAsync(user);
     }
 
@@ -230,6 +256,7 @@ public class UserDao(
         CancellationToken cancellationToken = default
     )
     {
+        // Resolve the account by id.
         var user = await userManager.FindByIdAsync(userId.ToString());
 
         if (user == null)
@@ -241,6 +268,7 @@ public class UserDao(
             };
         }
 
+        // Confirm the email with the supplied token.
         var result = await userManager.ConfirmEmailAsync(user, token);
 
         if (!result.Succeeded)
@@ -252,6 +280,7 @@ public class UserDao(
             };
         }
 
+        // Return the confirmed domain user.
         return new AuthOperationResult
         {
             Succeeded = true,
@@ -265,6 +294,7 @@ public class UserDao(
         CancellationToken cancellationToken = default
     )
     {
+        // Resolve the account by email.
         var user = await userManager.FindByEmailAsync(email);
 
         if (user == null)
@@ -272,6 +302,7 @@ public class UserDao(
             return null;
         }
 
+        // Generate an Identity password reset token.
         return await userManager.GeneratePasswordResetTokenAsync(user);
     }
 
@@ -283,6 +314,7 @@ public class UserDao(
         CancellationToken cancellationToken = default
     )
     {
+        // Resolve the account by email.
         var user = await userManager.FindByEmailAsync(email);
 
         if (user == null)
@@ -294,6 +326,7 @@ public class UserDao(
             };
         }
 
+        // Reset the password with the supplied token.
         var result = await userManager.ResetPasswordAsync(user, token, newPassword);
 
         if (!result.Succeeded)
@@ -305,6 +338,7 @@ public class UserDao(
             };
         }
 
+        // Return the updated domain user.
         return new AuthOperationResult
         {
             Succeeded = true,
@@ -319,6 +353,7 @@ public class UserDao(
     {
         var results = new List<User>(entities.Length);
 
+        // Map each EF entity to a domain user.
         foreach (var entity in entities)
         {
             results.Add(await this.MapUserAsync(entity, cancellationToken));
@@ -332,8 +367,10 @@ public class UserDao(
         CancellationToken cancellationToken
     )
     {
+        // Load role names for the account.
         var roles = await this.GetRoleNamesAsync(entity.Id, cancellationToken);
 
+        // Build the domain user from persisted fields.
         return new User
         {
             Id = entity.Id,
@@ -347,11 +384,13 @@ public class UserDao(
 
     private string ResolveDisplayName(ApplicationUser entity)
     {
+        // Prefer an explicit display name when present.
         if (!string.IsNullOrWhiteSpace(entity.DisplayName))
         {
             return entity.DisplayName;
         }
 
+        // Fall back to the email address.
         return entity.Email ?? string.Empty;
     }
 
@@ -371,11 +410,13 @@ public class UserDao(
 
     private async Task EnsureRoleExistsAsync(string roleName)
     {
+        // Skip creation when the role already exists.
         if (await roleManager.RoleExistsAsync(roleName))
         {
             return;
         }
 
+        // Create the missing role.
         await roleManager.CreateAsync(new ApplicationRole { Name = roleName });
     }
 }

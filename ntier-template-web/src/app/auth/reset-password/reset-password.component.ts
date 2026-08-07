@@ -16,6 +16,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null
     const password = control.get('password')?.value;
     const confirmPassword = control.get('confirmPassword')?.value;
 
+    // Reject mismatched password fields.
     if (password !== confirmPassword)
     {
         return { passwordMismatch: true };
@@ -83,6 +84,7 @@ export class ResetPasswordComponent implements OnInit, OnDestroy
 
     public ngOnInit(): void
     {
+        // Read reset link parameters and validate the link.
         this.route.queryParamMap
             .pipe(takeUntil(this.destroy$))
             .subscribe((params) => {
@@ -100,12 +102,14 @@ export class ResetPasswordComponent implements OnInit, OnDestroy
 
     public async onSubmit(): Promise<void>
     {
+        // Block duplicate submits, invalid form state, and bad links.
         if (this.isSubmittingSubject.value || this.form.invalid || this.linkInvalidSubject.value)
         {
             this.form.markAllAsTouched();
             return;
         }
 
+        // Enter the submitting state and clear prior errors.
         this.isSubmittingSubject.next(true);
         this.errorTextSubject.next('');
 
@@ -113,6 +117,7 @@ export class ResetPasswordComponent implements OnInit, OnDestroy
 
         try
         {
+            // Reset the password and redirect home on success.
             await this.auth.resetPassword(this.email, this.token, password);
             await this.router.navigateByUrl('/');
         }

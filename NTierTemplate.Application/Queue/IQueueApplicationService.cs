@@ -3,7 +3,9 @@ using NTierTemplate.Messaging;
 namespace NTierTemplate.Application.Queue;
 
 /// <summary>
-/// Entry point for enqueueing and processing queue commands.
+/// Enqueue, process, and retry domain commands through RabbitMQ. Single entry point for
+/// command messages from Api/Cli and the Queue worker. Dispatches by command payload type;
+/// business rules for each command stay on the relevant ApplicationService.
 /// </summary>
 public interface IQueueApplicationService
 {

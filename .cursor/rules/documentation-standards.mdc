@@ -23,7 +23,7 @@ For `*.cs` files:
 - Use `/// <summary>` for types (classes, interfaces), public methods, and public properties
 - Use `/// <param name="...">` for each method parameter
 - Use `/// <returns>` for method return values
-- Keep summary text concise and action-oriented
+- Keep summary text concise and action-oriented; type summaries may use a few sentences when scope needs clarifying
 
 ## TypeScript (TSDoc)
 
@@ -33,4 +33,4 @@ For `*.ts` and `*.tsx` files, use [TSDoc](https://tsdoc.org):
 - The text before the first block tag is the summary; keep it brief and action-oriented
 - Use `@param paramName - description` for each method parameter
 - Use `@returns description` for method return values (omit for `void`)
-- Optional: `@remarks` for longer documentation; `@example` for usage examples
+- Within method bodies, add brief `//` section comments before each logical block (same as C#)

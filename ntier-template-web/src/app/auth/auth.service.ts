@@ -65,21 +65,26 @@ export class AuthService
     {
         try
         {
+            // Read stored tokens from local storage.
             const stored = this.tokenStorage.read();
 
+            // Exit when no session is persisted.
             if (!stored)
             {
                 return;
             }
 
+            // Restore the in-memory session from stored tokens.
             await this.restoreSession(stored);
         }
         catch
         {
+            // Drop invalid or expired stored credentials.
             this.clearSession();
         }
         finally
         {
+            // Mark startup restore as complete.
             this.initializedSubject.next(true);
         }
     }
@@ -97,6 +102,7 @@ export class AuthService
         },
     ): Promise<string>
     {
+        // Submit the registration request to the API.
         const response = await firstValueFrom(this.authApi.register({
             email,
             password,
@@ -113,11 +119,13 @@ export class AuthService
      */
     public async login(email: string, password: string): Promise<void>
     {
+        // Exchange credentials for a token pair.
         const tokens = await firstValueFrom(this.authApi.login({
             email,
             password,
         }));
 
+        // Persist tokens and load the user profile.
         await this.applyTokens(tokens);
     }
 
@@ -126,11 +134,13 @@ export class AuthService
      */
     public async confirmEmail(userId: number, token: string): Promise<void>
     {
+        // Confirm the email address with the API.
         const tokens = await firstValueFrom(this.authApi.confirmEmail({
             userId,
             token,
         }));
 
+        // Persist tokens and load the user profile.
         await this.applyTokens(tokens);
     }
 
@@ -139,6 +149,7 @@ export class AuthService
      */
     public async resendConfirmation(email: string): Promise<string>
     {
+        // Request another confirmation email from the API.
         const response = await firstValueFrom(this.authApi.resendConfirmation({ email }));
 
         return response.message;
@@ -149,6 +160,7 @@ export class AuthService
      */
     public async forgotPassword(email: string): Promise<string>
     {
+        // Request a password reset email from the API.
         const response = await firstValueFrom(this.authApi.forgotPassword({ email }));
 
         return response.message;
@@ -159,12 +171,14 @@ export class AuthService
      */
     public async resetPassword(email: string, token: string, newPassword: string): Promise<void>
     {
+        // Submit the new password and reset token to the API.
         const tokens = await firstValueFrom(this.authApi.resetPassword({
             email,
             token,
             newPassword,
         }));
 
+        // Persist tokens and load the user profile.
         await this.applyTokens(tokens);
     }
 
@@ -175,6 +189,7 @@ export class AuthService
     {
         const current = this.session;
 
+        // Revoke the refresh token on the server when a session exists.
         if (current)
         {
             try
@@ -189,6 +204,7 @@ export class AuthService
             }
         }
 
+        // Drop in-memory session state and stored tokens.
         this.clearSession();
     }
 
@@ -197,6 +213,7 @@ export class AuthService
      */
     public refreshTokens(): Promise<boolean>
     {
+        // Reuse a single in-flight refresh for concurrent callers.
         if (!this.refreshInFlight)
         {
             this.refreshInFlight = this.performTokenRefresh().finally(() =>
@@ -213,7 +230,10 @@ export class AuthService
      */
     public clearSession(): void
     {
+        // Clear the in-memory session.
         this.sessionSubject.next(null);
+
+        // Remove persisted tokens.
         this.tokenStorage.clear();
     }
 
@@ -222,6 +242,7 @@ export class AuthService
      */
     public authErrorMessage(error: unknown, fallback: string): string
     {
+        // Extract a message from a failed HTTP response.
         if (error instanceof HttpErrorResponse)
         {
             const body = error.error as ApiErrorBody | null;
@@ -252,6 +273,7 @@ export class AuthService
     {
         const refreshToken = this.tokenStorage.readRefreshToken();
 
+        // Abort when no refresh token is stored.
         if (!refreshToken)
         {
             return false;
@@ -259,14 +281,17 @@ export class AuthService
 
         try
         {
+            // Exchange the refresh token for a new pair.
             const tokens = await firstValueFrom(this.authApi.refresh({
                 refreshToken,
             }));
 
+            // Persist the rotated token pair.
             this.tokenStorage.write(tokens);
 
             const current = this.session;
 
+            // Update the in-memory session when one is active.
             if (current)
             {
                 this.sessionSubject.next({
@@ -293,6 +318,7 @@ export class AuthService
             accessTokenExpiresAt: stored.accessTokenExpiresAt,
         };
 
+        // Refresh expired access tokens before loading the profile.
         if (this.tokenStorage.isAccessTokenExpired(tokens.accessTokenExpiresAt))
         {
             const refreshed = await this.performTokenRefresh();
@@ -312,19 +338,25 @@ export class AuthService
             tokens = reread;
         }
 
+        // Load the user profile and publish the session.
         await this.loadUserProfile(tokens);
     }
 
     private async applyTokens(tokens: StoredTokens): Promise<void>
     {
+        // Persist the token pair from the API.
         this.tokenStorage.write(tokens);
+
+        // Load the user profile and publish the session.
         await this.loadUserProfile(tokens);
     }
 
     private async loadUserProfile(tokens: StoredTokens): Promise<void>
     {
+        // Fetch the authenticated user's profile.
         const user = await firstValueFrom(this.authApi.getCurrentUser());
 
+        // Publish the session with tokens and profile.
         this.sessionSubject.next({
             user,
             accessToken: tokens.accessToken,

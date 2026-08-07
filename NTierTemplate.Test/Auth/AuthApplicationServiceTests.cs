@@ -1,10 +1,7 @@
-using Microsoft.Extensions.Options;
+using System.Security.Claims;
 using Moq;
-using NTierTemplate.Application;
 using NTierTemplate.Application.Auth;
-using NTierTemplate.Application.Email;
-using NTierTemplate.Application.Queue;
-using NTierTemplate.Application.Users;
+using NTierTemplate.Data.Users;
 using NTierTemplate.Users;
 
 namespace NTierTemplate.Test.Auth;
@@ -12,79 +9,83 @@ namespace NTierTemplate.Test.Auth;
 [TestFixture]
 public class AuthApplicationServiceTests
 {
-    private Mock<IUserApplicationService> userApplicationService = null!;
-    private Mock<IQueueApplicationService> queueApplicationService = null!;
-    private Mock<IEmailClient> emailClient = null!;
+    private Mock<IUserDao> userDao = null!;
+    private Mock<IRefreshTokenDao> refreshTokenDao = null!;
+    private Mock<IPrincipalContainer> principalContainer = null!;
     private AuthApplicationService service = null!;
 
     [SetUp]
     public void SetUp()
     {
-        this.userApplicationService = new Mock<IUserApplicationService>();
-        this.queueApplicationService = new Mock<IQueueApplicationService>();
-        this.emailClient = new Mock<IEmailClient>();
+        this.userDao = new Mock<IUserDao>();
+        this.refreshTokenDao = new Mock<IRefreshTokenDao>();
+        this.principalContainer = new Mock<IPrincipalContainer>();
         this.service = new AuthApplicationService(
-            this.userApplicationService.Object,
-            this.queueApplicationService.Object,
-            this.emailClient.Object,
-            Options.Create(new AppOptions { FrontendBaseUrl = "http://localhost:8240" })
+            this.userDao.Object,
+            this.refreshTokenDao.Object,
+            this.principalContainer.Object
         );
     }
 
     [Test]
-    public async Task EnqueueRegisterUserAsync_EnqueuesRegisterUserCommand()
+    public async Task ValidatePasswordAsync_SignsInUser_WhenCredentialsAreValid()
     {
-        RegisterUserCommand? capturedCommand = null;
+        var user = new User
+        {
+            Id = 1,
+            Email = "user@example.com",
+            FirstName = "Test",
+            LastName = "User",
+        };
 
-        this.queueApplicationService
-            .Setup(queue => queue.EnqueueAsync(It.IsAny<RegisterUserCommand>(), It.IsAny<CancellationToken>()))
-            .Callback<RegisterUserCommand, CancellationToken>((command, _) => capturedCommand = command)
-            .ReturnsAsync(Guid.NewGuid());
+        this.userDao
+            .Setup(dao => dao.ValidatePasswordAsync("user@example.com", "Password1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
 
-        var messageId = await this.service.EnqueueRegisterUserAsync(
-            new RegisterUserRequest
-            {
-                Email = "new@example.com",
-                Password = "Password1",
-                FirstName = "Ada",
-                LastName = "Lovelace",
-            }
-        );
+        var result = await this.service.ValidatePasswordAsync("user@example.com", "Password1");
 
-        messageId.Should().NotBeEmpty();
-        capturedCommand.Should().NotBeNull();
-        capturedCommand!.Email.Should().Be("new@example.com");
+        result.Should().BeSameAs(user);
+        this.principalContainer.Verify(container => container.SignIn(user), Times.Once);
+    }
 
-        this.queueApplicationService.Verify(
-            queue => queue.EnqueueAsync(It.IsAny<RegisterUserCommand>(), It.IsAny<CancellationToken>()),
+    [Test]
+    public async Task ValidatePasswordAsync_DoesNotSignInUser_WhenCredentialsAreInvalid()
+    {
+        this.userDao
+            .Setup(dao => dao.ValidatePasswordAsync("user@example.com", "wrong", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+
+        var result = await this.service.ValidatePasswordAsync("user@example.com", "wrong");
+
+        result.Should().BeNull();
+        this.principalContainer.Verify(container => container.SignIn(It.IsAny<User>()), Times.Never);
+    }
+
+    [Test]
+    public async Task GetCurrentUserAsync_ReturnsNull_WhenPrincipalIsNotAuthenticated()
+    {
+        this.principalContainer
+            .Setup(container => container.Principal)
+            .Returns(new ClaimsPrincipal(new ClaimsIdentity()));
+
+        var result = await this.service.GetCurrentUserAsync();
+
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public async Task RedeemRefreshTokenAsync_ReturnsUserId_WhenTokenIsValid()
+    {
+        this.refreshTokenDao
+            .Setup(dao => dao.FindValidUserIdByTokenHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(42);
+
+        var result = await this.service.RedeemRefreshTokenAsync("refresh-token");
+
+        result.Should().Be(42);
+        this.refreshTokenDao.Verify(
+            dao => dao.RevokeByTokenHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Once
-        );
-    }
-
-    [Test]
-    public async Task ProcessRegisterUserAsync_ReturnsDuplicateFailure_WhenEmailAlreadyExists()
-    {
-        this.userApplicationService
-            .Setup(service => service.RegisterAsync(It.IsAny<RegisterUserRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserCreateResult
-            {
-                Succeeded = false,
-                Errors = ["An account with that email already exists."],
-            });
-
-        var result = await this.service.ProcessRegisterUserAsync(
-            new RegisterUserRequest
-            {
-                Email = "existing@example.com",
-                Password = "Password1",
-            }
-        );
-
-        result.Succeeded.Should().BeFalse();
-        result.IsDuplicateEmail.Should().BeTrue();
-        this.emailClient.Verify(
-            client => client.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()),
-            Times.Never
         );
     }
 }

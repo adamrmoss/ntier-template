@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using NTierTemplate.Application.Auth;
+using NTierTemplate.Application.Users;
 using NTierTemplate.Data;
 using NTierTemplate.Data.FailedCommands;
 using NTierTemplate.Messaging;
@@ -32,12 +32,14 @@ public sealed class QueueApplicationService(
     public async Task<Guid> EnqueueAsync<TCommand>(TCommand command, CancellationToken cancellationToken = default)
         where TCommand : class
     {
+        // Wrap the command in a queue envelope.
         var envelope = new CommandEnvelope
         {
             CommandName = typeof(TCommand).FullName ?? typeof(TCommand).Name,
             Payload = JsonSerializer.Serialize(command),
         };
 
+        // Publish the envelope to RabbitMQ.
         await this.PublishAsync(envelope, cancellationToken);
 
         return envelope.MessageId;
@@ -46,6 +48,7 @@ public sealed class QueueApplicationService(
     /// <inheritdoc />
     public async Task ProcessAsync(CommandEnvelope envelope, CancellationToken cancellationToken = default)
     {
+        // Execute the command and capture the outcome.
         var result = await this.ExecuteAsync(envelope, cancellationToken);
 
         using var scope = scopeFactory.CreateScope();
@@ -53,11 +56,13 @@ public sealed class QueueApplicationService(
 
         if (result.Succeeded)
         {
+            // Clear any prior failed-command record on success.
             await failedCommandDao.MarkSucceededAsync(envelope.MessageId, cancellationToken);
             return;
         }
 
-        await this.ScheduleRetryAsync(
+        // Schedule a retry or mark the command exhausted.
+        await ScheduleRetryAsync(
             failedCommandDao,
             envelope,
             result.ErrorMessage ?? "Command processing failed.",
@@ -72,12 +77,14 @@ public sealed class QueueApplicationService(
         using var scope = scopeFactory.CreateScope();
         var failedCommandDao = scope.ServiceProvider.GetRequiredService<IFailedCommandDao>();
 
+        // Load failed commands that are due for another attempt.
         var dueCommands = await failedCommandDao.GetDueForRetryAsync(
             DateTime.UtcNow,
             RetryBatchSize,
             cancellationToken
         );
 
+        // Republish each due command to the work queue.
         foreach (var failedCommand in dueCommands)
         {
             var envelope = new CommandEnvelope
@@ -97,6 +104,7 @@ public sealed class QueueApplicationService(
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        // Close and dispose the open channel.
         if (this.channel != null)
         {
             await this.channel.CloseAsync();
@@ -104,6 +112,7 @@ public sealed class QueueApplicationService(
             this.channel = null;
         }
 
+        // Close and dispose the open connection.
         if (this.connection != null)
         {
             await this.connection.CloseAsync();
@@ -119,6 +128,7 @@ public sealed class QueueApplicationService(
         CancellationToken cancellationToken
     )
     {
+        // Resolve the command type from the envelope name.
         var commandType = ResolveCommandType(envelope.CommandName);
 
         if (commandType == null)
@@ -130,6 +140,7 @@ public sealed class QueueApplicationService(
 
         try
         {
+            // Deserialize the payload into the resolved command type.
             command = JsonSerializer.Deserialize(envelope.Payload, commandType);
         }
         catch (JsonException exception)
@@ -149,6 +160,7 @@ public sealed class QueueApplicationService(
             return QueueCommandResult.PermanentFailure("Command payload was empty.");
         }
 
+        // Dispatch to the handler for the resolved command type.
         if (commandType == typeof(RegisterUserCommand))
         {
             return await this.ProcessRegisterUserAsync((RegisterUserCommand)command, cancellationToken);
@@ -163,20 +175,22 @@ public sealed class QueueApplicationService(
     )
     {
         using var scope = scopeFactory.CreateScope();
-        var authApplicationService = scope.ServiceProvider.GetRequiredService<IAuthApplicationService>();
+        var userApplicationService = scope.ServiceProvider.GetRequiredService<IUserApplicationService>();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
         try
         {
+            // Run registration inside a transaction boundary.
             await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var result = await authApplicationService.ProcessRegisterUserAsync(
+            var result = await userApplicationService.ProcessRegisterUserAsync(
                 command.ToRequest(),
                 cancellationToken
             );
 
             if (!result.Succeeded)
             {
+                // Roll back and classify the failure for retry policy.
                 await unitOfWork.RollbackAsync(cancellationToken);
 
                 return result.IsDuplicateEmail
@@ -184,6 +198,7 @@ public sealed class QueueApplicationService(
                     : QueueCommandResult.TransientFailure(result.ErrorMessage ?? "Registration failed.");
             }
 
+            // Commit the registration and confirmation email work.
             await unitOfWork.CommitAsync(cancellationToken);
 
             return QueueCommandResult.Success();
@@ -194,6 +209,7 @@ public sealed class QueueApplicationService(
 
             try
             {
+                // Best-effort rollback after an unexpected error.
                 await unitOfWork.RollbackAsync(cancellationToken);
             }
             catch (Exception rollbackException)
@@ -213,8 +229,10 @@ public sealed class QueueApplicationService(
 
     private async Task PublishAsync(CommandEnvelope envelope, CancellationToken cancellationToken)
     {
+        // Ensure a RabbitMQ channel exists before publishing.
         await this.EnsureChannelAsync(cancellationToken);
 
+        // Serialize the envelope and set persistent delivery properties.
         var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(envelope));
         var properties = new BasicProperties
         {
@@ -223,6 +241,7 @@ public sealed class QueueApplicationService(
             MessageId = envelope.MessageId.ToString(),
         };
 
+        // Publish to the configured work queue.
         await this.channel!.BasicPublishAsync(
             exchange: string.Empty,
             routingKey: this.options.QueueName,
@@ -235,6 +254,7 @@ public sealed class QueueApplicationService(
 
     private async Task EnsureChannelAsync(CancellationToken cancellationToken)
     {
+        // Return when the channel is already initialized.
         if (this.channel != null)
         {
             return;
@@ -244,11 +264,13 @@ public sealed class QueueApplicationService(
 
         try
         {
+            // Re-check after acquiring the initialization lock.
             if (this.channel != null)
             {
                 return;
             }
 
+            // Open a RabbitMQ connection and channel.
             var factory = new ConnectionFactory
             {
                 HostName = this.options.Host,
@@ -261,6 +283,7 @@ public sealed class QueueApplicationService(
             this.connection = await factory.CreateConnectionAsync(cancellationToken);
             this.channel = await this.connection.CreateChannelAsync(cancellationToken: cancellationToken);
 
+            // Declare the work queue as durable.
             await this.channel.QueueDeclareAsync(
                 queue: this.options.QueueName,
                 durable: true,
@@ -284,12 +307,14 @@ public sealed class QueueApplicationService(
         CancellationToken cancellationToken
     )
     {
+        // Compute the next attempt number and retry schedule.
         var nextAttempt = envelope.Attempt + 1;
         var exhausted = isPermanentFailure || nextAttempt >= envelope.MaxAttempts;
         var nextRetryAtUtc = exhausted
             ? (DateTime?)null
             : DateTime.UtcNow.Add(GetRetryDelay(nextAttempt));
 
+        // Persist updated retry metadata for the failed command.
         await failedCommandDao.UpsertAsync(
             new FailedCommand
             {
@@ -309,6 +334,7 @@ public sealed class QueueApplicationService(
 
     private static TimeSpan GetRetryDelay(int attempt)
     {
+        // Use exponential backoff capped at 2^6 seconds.
         var seconds = Math.Pow(2, Math.Min(attempt, 6));
         return TimeSpan.FromSeconds(seconds);
     }
@@ -320,6 +346,7 @@ public sealed class QueueApplicationService(
             return null;
         }
 
+        // Limit stored error text to the column capacity.
         return errorMessage.Length <= 2000
             ? errorMessage
             : errorMessage[..2000];

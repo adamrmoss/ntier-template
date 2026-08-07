@@ -10,10 +10,10 @@ alwaysApply: false
 
 ## What Lives Here
 
-- Application service interfaces and implementations (`IUserApplicationService`, `UserApplicationService`, `IAuthApplicationService`, …)
-- Use-case orchestration types must use the **`ApplicationService`** suffix (interface: `I{Area}ApplicationService`, class: `{Area}ApplicationService`). Bare `Service` names are too vague — infrastructure adapters may use `Client`, `Dao`, etc.
-- Common DI extension methods (e.g. `AddNTierTemplateApplication`, `AddNTierTemplateData`) called by Api, Cli, and Queue hosts
-- Use-case workflows that span aggregates or multiple DAOs
+- Application service interfaces and implementations for use-case orchestration
+- Use-case types use the **`ApplicationService`** suffix (interface: `I{Area}ApplicationService`, class: `{Area}ApplicationService`). Bare `Service` names are too vague — infrastructure adapters use names like `Client` or `Dao`
+- Document each ApplicationService's scope in its type-level `/// <summary>` — not in Cursor rules
+- Common DI registration in `NTierTemplate.Application/Ioc/`
 - Transaction boundary decisions for a use case
 
 ## What Does Not Live Here
@@ -33,26 +33,21 @@ Application **project-references** Data and registers DAO implementations via co
 
 ## CQRS
 
-- **Queries**: Api (and Cli when appropriate) call Application services **directly** and return results synchronously
-- **Commands / side effects**: Api and Cli **may** call Application directly, but **usually enqueue a message** for `NTierTemplate.Queue/` to process asynchronously
-- Keep query paths read-focused; keep command paths write-focused. Share types through Domain, not through Data
+- **Queries**: entry points call Application services synchronously
+- **Commands / side effects**: prefer enqueueing to the queue worker over doing heavy writes inline in Api/Cli
+- Keep query paths read-focused and command paths write-focused; share contracts through Domain
 
-## Queue Interaction (CQRS-lite)
+## Queue (CQRS-lite)
 
-Entry points (Api, Cli) interact with the queue through **one Application service** — e.g. `IQueueApplicationService` — not a separate publisher/dispatcher/retry service graph.
-
-- **Enqueue**: entry points call that service to publish a domain command envelope
-- **Process**: the Queue worker calls the same service (or sibling methods on it) to execute commands and handle retry bookkeeping
-- Command identity uses the **CLR type name** (`typeof(TCommand).FullName`) on the envelope — not separate string constants or a `CommandNames` table; resolve with `Type.GetType` / assembly lookup and deserialize the payload
-- Avoid extra indirection (`ICommandPublisher`, `ICommandDispatcher`, `IFailedCommandService`, etc.) unless the user explicitly asks for it
-- `UnitOfWork` and failed-command persistence live in Data; orchestration stays in Application
-
-Agree on shape with the user before adding types or wiring.
+- One ApplicationService entry point for enqueue, process, and retry — not a parallel graph of publisher/dispatcher/handler services
+- Command identity on the wire uses the payload type's CLR full name; resolve by type and deserialize
+- Failed-command persistence and `UnitOfWork` belong in Data; orchestration in Application
 
 ## Entry Point Rules
 
 - Api, Cli, and Queue resolve Application service interfaces — not DAO interfaces, `UserManager`, or `NTierTemplateDbContext`
-- JWT token issuance stays in the auth layer (`NTierTemplate.Api/`)
+- Host-specific concerns (JWT access tokens, HTTP, CLI parsing, RabbitMQ consumers) stay in the entry-point project
+- When unsure which ApplicationService owns a use case, read its type documentation first; split by responsibility, not by layer count
 
 ## Related Rules
 

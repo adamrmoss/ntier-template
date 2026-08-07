@@ -18,9 +18,11 @@ public static class NTierTemplateStartupExtensions
         CancellationToken cancellationToken = default
     )
     {
+        // Resolve user services in a short-lived scope.
         using var scope = services.CreateScope();
         var userApplicationService = scope.ServiceProvider.GetRequiredService<IUserApplicationService>();
 
+        // Ensure default roles exist in the database.
         await userApplicationService.EnsureDefaultRolesExistAsync(cancellationToken);
     }
 }

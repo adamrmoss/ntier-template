@@ -69,12 +69,14 @@ export class LoginDialogComponent
 
     public onOpenRegister(): void
     {
+        // Close the login dialog before opening registration.
         this.dialogRef.close(false);
         void firstValueFrom(this.authDialog.openRegister());
     }
 
     public onShowForgotPassword(): void
     {
+        // Reveal the forgot-password panel and clear prior messages.
         this.showForgotPasswordSubject.next(true);
         this.errorTextSubject.next('');
         this.forgotMessageSubject.next('');
@@ -82,17 +84,20 @@ export class LoginDialogComponent
 
     public async onSendForgotPassword(): Promise<void>
     {
+        // Require a valid email before sending the reset link.
         if (this.form.controls.email.invalid)
         {
             this.form.controls.email.markAsTouched();
             return;
         }
 
+        // Enter the submitting state and clear prior messages.
         this.isSubmittingSubject.next(true);
         this.forgotMessageSubject.next('');
 
         try
         {
+            // Request a password reset email from the API.
             const message = await this.auth.forgotPassword(this.form.controls.email.value);
             this.forgotMessageSubject.next(message);
         }
@@ -108,12 +113,14 @@ export class LoginDialogComponent
 
     public async onSubmit(): Promise<void>
     {
+        // Block duplicate submits and invalid form state.
         if (this.isSubmittingSubject.value || this.form.invalid)
         {
             this.form.markAllAsTouched();
             return;
         }
 
+        // Enter the submitting state and clear prior errors.
         this.isSubmittingSubject.next(true);
         this.errorTextSubject.next('');
 
@@ -121,6 +128,7 @@ export class LoginDialogComponent
 
         try
         {
+            // Sign in and close the dialog on success.
             await this.auth.login(email, password);
             this.dialogRef.close(true);
         }

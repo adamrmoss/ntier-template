@@ -16,6 +16,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null
     const password = control.get('password')?.value;
     const confirmPassword = control.get('confirmPassword')?.value;
 
+    // Reject mismatched password fields.
     if (password !== confirmPassword)
     {
         return { passwordMismatch: true };
@@ -92,12 +93,14 @@ export class RegisterDialogComponent
 
     public async onSubmit(): Promise<void>
     {
+        // Block duplicate submits and invalid form state.
         if (this.isSubmittingSubject.value || this.form.invalid)
         {
             this.form.markAllAsTouched();
             return;
         }
 
+        // Enter the submitting state and clear prior errors.
         this.isSubmittingSubject.next(true);
         this.errorTextSubject.next('');
 
@@ -105,6 +108,7 @@ export class RegisterDialogComponent
 
         try
         {
+            // Register the account and show the confirmation message.
             const message = await this.auth.register(email, password, {
                 displayName: displayName || undefined,
             });

@@ -19,10 +19,12 @@ export class AuthTokenStorage
      */
     public read(): StoredTokens | null
     {
+        // Read persisted token values from local storage.
         const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
         const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
         const accessTokenExpiresAt = localStorage.getItem(ACCESS_TOKEN_EXPIRES_KEY);
 
+        // Require a complete token pair.
         if (!accessToken || !refreshToken || !accessTokenExpiresAt)
         {
             return null;
@@ -56,6 +58,7 @@ export class AuthTokenStorage
      */
     public write(tokens: TokenResponse): void
     {
+        // Persist the token pair from the API.
         localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
         localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
         localStorage.setItem(ACCESS_TOKEN_EXPIRES_KEY, tokens.accessTokenExpiresAt);
@@ -66,6 +69,7 @@ export class AuthTokenStorage
      */
     public clear(): void
     {
+        // Remove all persisted auth tokens.
         localStorage.removeItem(ACCESS_TOKEN_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
         localStorage.removeItem(ACCESS_TOKEN_EXPIRES_KEY);
@@ -78,11 +82,13 @@ export class AuthTokenStorage
     {
         const expiresAtMs = Date.parse(accessTokenExpiresAt);
 
+        // Treat unparseable expiry values as expired.
         if (Number.isNaN(expiresAtMs))
         {
             return true;
         }
 
+        // Compare against the refresh buffer window.
         return Date.now() >= expiresAtMs - bufferMs;
     }
 }

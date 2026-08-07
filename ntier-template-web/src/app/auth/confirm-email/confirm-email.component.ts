@@ -35,6 +35,7 @@ export class ConfirmEmailComponent implements OnInit, OnDestroy
 
     public ngOnInit(): void
     {
+        // Confirm the email from link query parameters once on load.
         this.route.queryParamMap
             .pipe(
                 take(1),
@@ -43,6 +44,7 @@ export class ConfirmEmailComponent implements OnInit, OnDestroy
                     const token = params.get('token') ?? '';
                     const userId = Number(userIdValue);
 
+                    // Reject links with missing or invalid parameters.
                     if (!userIdValue || Number.isNaN(userId) || !token)
                     {
                         this.statusMessageSubject.next('');
@@ -50,6 +52,7 @@ export class ConfirmEmailComponent implements OnInit, OnDestroy
                         return EMPTY;
                     }
 
+                    // Confirm the email and redirect home on success.
                     return from(this.auth.confirmEmail(userId, token)).pipe(
                         tap(() => {
                             void this.router.navigateByUrl('/');

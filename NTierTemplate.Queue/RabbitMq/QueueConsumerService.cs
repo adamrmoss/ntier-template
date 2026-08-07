@@ -26,6 +26,7 @@ public class QueueConsumerService(
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Configure the RabbitMQ connection factory.
         var factory = new ConnectionFactory
         {
             HostName = this.options.Host,
@@ -35,9 +36,11 @@ public class QueueConsumerService(
             VirtualHost = this.options.VirtualHost,
         };
 
+        // Open a connection and channel for consuming.
         await using var connection = await factory.CreateConnectionAsync(stoppingToken);
         await using var channel = await connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
+        // Declare the work queue as durable.
         await channel.QueueDeclareAsync(
             queue: this.options.QueueName,
             durable: true,
@@ -47,6 +50,7 @@ public class QueueConsumerService(
             cancellationToken: stoppingToken
         );
 
+        // Process one unacknowledged message at a time.
         await channel.BasicQosAsync(
             prefetchSize: 0,
             prefetchCount: 1,
@@ -54,10 +58,12 @@ public class QueueConsumerService(
             cancellationToken: stoppingToken
         );
 
+        // Route incoming deliveries to the message handler.
         var consumer = new AsyncEventingBasicConsumer(channel);
         consumer.ReceivedAsync += (_, eventArgs) =>
             this.HandleMessageAsync(channel, eventArgs, stoppingToken);
 
+        // Start consuming from the work queue.
         await channel.BasicConsumeAsync(
             queue: this.options.QueueName,
             autoAck: false,
@@ -72,6 +78,7 @@ public class QueueConsumerService(
             this.options.Port
         );
 
+        // Keep the background service alive until shutdown.
         await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
     }
 
@@ -81,11 +88,13 @@ public class QueueConsumerService(
         CancellationToken cancellationToken
     )
     {
+        // Decode the message body as UTF-8 text.
         var body = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
         CommandEnvelope? envelope;
 
         try
         {
+            // Deserialize the command envelope from JSON.
             envelope = JsonSerializer.Deserialize<CommandEnvelope>(body);
         }
         catch (JsonException exception)
@@ -95,6 +104,7 @@ public class QueueConsumerService(
             return;
         }
 
+        // Reject envelopes that are empty or missing a command type.
         if (envelope == null || string.IsNullOrWhiteSpace(envelope.CommandName))
         {
             logger.LogWarning("Queue message envelope was empty or missing a command type name.");
@@ -104,11 +114,13 @@ public class QueueConsumerService(
 
         try
         {
+            // Delegate command execution to the application layer.
             using var scope = scopeFactory.CreateScope();
             var queueApplicationService = scope.ServiceProvider.GetRequiredService<IQueueApplicationService>();
 
             await queueApplicationService.ProcessAsync(envelope, cancellationToken);
 
+            // Acknowledge successful processing.
             await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, cancellationToken);
         }
         catch (Exception exception)
@@ -120,6 +132,7 @@ public class QueueConsumerService(
                 envelope.MessageId
             );
 
+            // Acknowledge to avoid poison-message redelivery loops.
             await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, cancellationToken);
         }
     }

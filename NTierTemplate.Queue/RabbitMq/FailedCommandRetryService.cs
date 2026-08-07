@@ -19,10 +19,12 @@ public class FailedCommandRetryService(
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Poll for failed commands due for retry until shutdown.
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                // Republish commands that have reached their retry time.
                 using var scope = scopeFactory.CreateScope();
                 var queueApplicationService = scope.ServiceProvider.GetRequiredService<IQueueApplicationService>();
                 await queueApplicationService.RetryDueAsync(stoppingToken);
@@ -34,6 +36,7 @@ public class FailedCommandRetryService(
 
             try
             {
+                // Wait before the next retry sweep.
                 await Task.Delay(PollInterval, stoppingToken);
             }
             catch (OperationCanceledException)

@@ -42,12 +42,14 @@ export class ShellComponent
 
     constructor()
     {
+        // Mirror authentication state into view-ready fields.
         this.auth.isAuthenticated$
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((authenticated) => {
                 this.authenticated = authenticated;
             });
 
+        // Mirror the signed-in user into view-ready fields.
         this.auth.user$
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((user) => {
@@ -62,6 +64,7 @@ export class ShellComponent
 
     public get userLabel(): string
     {
+        // Fall back to a generic label when no user is loaded.
         if (!this.currentUser)
         {
             return 'Account';

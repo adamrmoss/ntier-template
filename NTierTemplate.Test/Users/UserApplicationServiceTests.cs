@@ -1,5 +1,8 @@
-using System.Security.Claims;
+using Microsoft.Extensions.Options;
 using Moq;
+using NTierTemplate.Application;
+using NTierTemplate.Application.Email;
+using NTierTemplate.Application.Queue;
 using NTierTemplate.Application.Users;
 using NTierTemplate.Data.Users;
 using NTierTemplate.Users;
@@ -10,20 +13,21 @@ namespace NTierTemplate.Test.Users;
 public class UserApplicationServiceTests
 {
     private Mock<IUserDao> userDao = null!;
-    private Mock<IRefreshTokenDao> refreshTokenDao = null!;
-    private Mock<IPrincipalContainer> principalContainer = null!;
+    private Mock<IQueueApplicationService> queueApplicationService = null!;
+    private Mock<IEmailClient> emailClient = null!;
     private UserApplicationService service = null!;
 
     [SetUp]
     public void SetUp()
     {
         this.userDao = new Mock<IUserDao>();
-        this.refreshTokenDao = new Mock<IRefreshTokenDao>();
-        this.principalContainer = new Mock<IPrincipalContainer>();
+        this.queueApplicationService = new Mock<IQueueApplicationService>();
+        this.emailClient = new Mock<IEmailClient>();
         this.service = new UserApplicationService(
             this.userDao.Object,
-            this.refreshTokenDao.Object,
-            this.principalContainer.Object
+            this.queueApplicationService.Object,
+            this.emailClient.Object,
+            Options.Create(new AppOptions { FrontendBaseUrl = "http://localhost:8240" })
         );
     }
 
@@ -61,28 +65,26 @@ public class UserApplicationServiceTests
         this.userDao
             .Setup(dao => dao.CreateAsync(It.IsAny<RegisterUserRequest>(), It.IsAny<CancellationToken>()))
             .Callback<RegisterUserRequest, CancellationToken>((request, _) => capturedRequest = request)
-            .ReturnsAsync(
-                new UserCreateResult
-                {
-                    Succeeded = true,
-                    User = this.CreateUser(),
-                }
-            );
+            .ReturnsAsync(new UserCreateResult
+            {
+                Succeeded = true,
+                User = this.CreateUser(email: "new@example.com"),
+            });
 
         await this.service.RegisterAsync(
             new RegisterUserRequest
             {
-                Email = "  user@example.com  ",
+                Email = "  new@example.com  ",
                 Password = "password",
-                DisplayName = "  Display Name  ",
+                DisplayName = "  Ada  ",
                 FirstName = "  Ada  ",
                 LastName = "  Lovelace  ",
             }
         );
 
         capturedRequest.Should().NotBeNull();
-        capturedRequest!.Email.Should().Be("user@example.com");
-        capturedRequest.DisplayName.Should().Be("Display Name");
+        capturedRequest!.Email.Should().Be("new@example.com");
+        capturedRequest.DisplayName.Should().Be("Ada");
         capturedRequest.FirstName.Should().Be("Ada");
         capturedRequest.LastName.Should().Be("Lovelace");
     }
@@ -105,82 +107,63 @@ public class UserApplicationServiceTests
     }
 
     [Test]
-    public async Task GetCurrentUserAsync_ReturnsNull_WhenPrincipalIsNotAuthenticated()
+    public async Task EnqueueRegisterUserAsync_EnqueuesRegisterUserCommand()
     {
-        this.principalContainer
-            .Setup(container => container.Principal)
-            .Returns(new ClaimsPrincipal(new ClaimsIdentity()));
+        RegisterUserCommand? capturedCommand = null;
 
-        var result = await this.service.GetCurrentUserAsync();
+        this.queueApplicationService
+            .Setup(queue => queue.EnqueueAsync(It.IsAny<RegisterUserCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<RegisterUserCommand, CancellationToken>((command, _) => capturedCommand = command)
+            .ReturnsAsync(Guid.NewGuid());
 
-        result.Should().BeNull();
-        this.userDao.Verify(
-            dao => dao.GetByPrincipalAsync(It.IsAny<ClaimsPrincipal>(), It.IsAny<CancellationToken>()),
+        var messageId = await this.service.EnqueueRegisterUserAsync(
+            new RegisterUserRequest
+            {
+                Email = "new@example.com",
+                Password = "Password1",
+                FirstName = "Ada",
+                LastName = "Lovelace",
+            }
+        );
+
+        messageId.Should().NotBeEmpty();
+        capturedCommand.Should().NotBeNull();
+        capturedCommand!.Email.Should().Be("new@example.com");
+    }
+
+    [Test]
+    public async Task ProcessRegisterUserAsync_ReturnsDuplicateFailure_WhenEmailAlreadyExists()
+    {
+        this.userDao
+            .Setup(dao => dao.GetByEmailAsync("existing@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(this.CreateUser(email: "existing@example.com"));
+
+        var result = await this.service.ProcessRegisterUserAsync(
+            new RegisterUserRequest
+            {
+                Email = "existing@example.com",
+                Password = "Password1",
+            }
+        );
+
+        result.Succeeded.Should().BeFalse();
+        result.IsDuplicateEmail.Should().BeTrue();
+        this.emailClient.Verify(
+            client => client.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()),
             Times.Never
         );
     }
 
-    [Test]
-    public async Task GetCurrentUserAsync_ReturnsUser_WhenPrincipalIsAuthenticated()
-    {
-        var user = this.CreateUser();
-        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, "user")], "Bearer"));
-
-        this.principalContainer.Setup(container => container.Principal).Returns(principal);
-        this.userDao
-            .Setup(dao => dao.GetByPrincipalAsync(principal, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
-
-        var result = await this.service.GetCurrentUserAsync();
-
-        result.Should().BeSameAs(user);
-    }
-
-    [Test]
-    public async Task ValidatePasswordAsync_DoesNotSignIn_WhenCredentialsAreInvalid()
-    {
-        this.userDao
-            .Setup(dao => dao.ValidatePasswordAsync("user@example.com", "wrong", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((User?)null);
-
-        var result = await this.service.ValidatePasswordAsync("user@example.com", "wrong");
-
-        result.Should().BeNull();
-        this.principalContainer.Verify(container => container.SignIn(It.IsAny<User>()), Times.Never);
-    }
-
-    [Test]
-    public async Task ValidatePasswordAsync_SignsIn_WhenCredentialsAreValid()
-    {
-        var user = this.CreateUser();
-
-        this.userDao
-            .Setup(dao => dao.ValidatePasswordAsync("user@example.com", "password", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
-
-        var result = await this.service.ValidatePasswordAsync("user@example.com", "password");
-
-        result.Should().BeSameAs(user);
-        this.principalContainer.Verify(container => container.SignIn(user), Times.Once);
-    }
-
-    private User CreateUser(
-        int id = 1,
-        string email = "user@example.com",
-        string firstName = "Ada",
-        string lastName = "Lovelace",
-        string displayName = "Ada Lovelace",
-        string[]? roles = null
-    )
+    private User CreateUser(string email = "user@example.com")
     {
         return new User
         {
-            Id = id,
+            Id = 1,
             Email = email,
-            FirstName = firstName,
-            LastName = lastName,
-            DisplayName = displayName,
-            Roles = roles ?? ["User"],
+            FirstName = "Test",
+            LastName = "User",
+            DisplayName = "Test User",
+            Roles = ["User"],
         };
     }
 }

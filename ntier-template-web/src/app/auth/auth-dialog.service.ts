@@ -25,11 +25,13 @@ export class AuthDialogService
      */
     public openLogin(): Observable<boolean>
     {
+        // Treat an existing session as already signed in.
         if (this.auth.isAuthenticated)
         {
             return of(true);
         }
 
+        // Open one shared login dialog for concurrent callers.
         if (!this.loginDialog$)
         {
             this.loginDialog$ = this.dialog.open(LoginDialogComponent, {
@@ -55,11 +57,13 @@ export class AuthDialogService
      */
     public openRegister(): Observable<boolean>
     {
+        // Treat an existing session as already signed in.
         if (this.auth.isAuthenticated)
         {
             return of(true);
         }
 
+        // Open one shared registration dialog for concurrent callers.
         if (!this.registerDialog$)
         {
             this.registerDialog$ = this.dialog.open(RegisterDialogComponent, {
@@ -85,6 +89,7 @@ export class AuthDialogService
      */
     public requireAuth(): Observable<boolean>
     {
+        // Return immediately when the visitor is already signed in.
         if (this.auth.isAuthenticated)
         {
             return of(true);

@@ -13,6 +13,7 @@ const APP_ICONS = [
  */
 export function registerAppIcons(registry: MatIconRegistry, sanitizer: DomSanitizer): void
 {
+    // Register each self-hosted SVG icon with Material.
     for (const name of APP_ICONS)
     {
         registry.addSvgIcon(

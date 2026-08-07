@@ -1,4 +1,4 @@
-namespace NTierTemplate.Application.Auth;
+namespace NTierTemplate.Application.Users;
 
 /// <summary>
 /// Outcome of processing a register-user command in the queue worker.

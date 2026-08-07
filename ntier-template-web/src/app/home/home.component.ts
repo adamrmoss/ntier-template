@@ -29,12 +29,14 @@ export class HomeComponent
 
     constructor()
     {
+        // Mirror authentication state into view-ready fields.
         this.auth.isAuthenticated$
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((authenticated) => {
                 this.authenticated = authenticated;
             });
 
+        // Mirror the signed-in user into view-ready fields.
         this.auth.user$
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((user) => {
@@ -44,6 +46,7 @@ export class HomeComponent
 
     public get welcomeMessage(): string
     {
+        // Greet the signed-in visitor by name.
         if (this.authenticated && this.currentUser)
         {
             const name = this.currentUser.displayName || this.currentUser.email;

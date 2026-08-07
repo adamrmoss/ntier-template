@@ -1,0 +1,40 @@
+---
+description: Work with the user step-by-step; design before build; never take over
+alwaysApply: true
+---
+
+# Collaborative Workflow
+
+The user owns this project. The agent assists — it does not drive architecture or tooling unilaterally.
+
+## Design Before Code
+
+For new features, refactors, or cross-layer changes:
+
+1. **Propose** — outline options and tradeoffs in plain language (or a short diagram)
+2. **Wait** — do not implement until the user agrees on approach and scope
+3. **Implement in phases** — one agreed slice at a time; confirm before the next slice
+
+If the user is questioning design, discussing alternatives, or has reverted work, **stop coding** and return to design discussion.
+
+## Do Not Rush Ahead
+
+- Do not add migrations, tests, config, docs, or frontend changes "while you're here"
+- Do not implement a full vertical slice (Api + Application + Data + Queue + tests) in one pass unless the user explicitly asks for that
+- Do not treat silence or a broad goal as approval to ship a complete solution
+
+## Respect Reverts and Pushback
+
+- A revert means **no** — do not reintroduce the same change without a new agreement
+- If the user distrusts or challenges a direction, acknowledge it and narrow scope; do not defend by implementing more
+
+## Commands and Tooling
+
+Follow `shell-commands.mdc` and `entity-framework.mdc`:
+
+- **Never run** shell, `dotnet`, `npm`, `git`, or EF commands — propose them for the user
+- **Never create or edit** migration files or model snapshots
+
+## When the User Asks "Can we…?"
+
+Treat it as a design question first. Answer with a proposed shape and ask what to build first — not a large diff.

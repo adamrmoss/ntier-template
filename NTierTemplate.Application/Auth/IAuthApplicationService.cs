@@ -8,12 +8,24 @@ namespace NTierTemplate.Application.Auth;
 public interface IAuthApplicationService
 {
     /// <summary>
-    /// Register a user and send a confirmation email when registration succeeds.
+    /// Enqueue a register-user command for asynchronous processing.
     /// </summary>
     /// <param name="request">Registration payload.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Registration and email delivery outcome.</returns>
-    Task<RegistrationResult> RegisterAndSendConfirmationAsync(
+    /// <returns>The queued message identifier.</returns>
+    Task<Guid> EnqueueRegisterUserAsync(
+        RegisterUserRequest request,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Register a user and send a confirmation email when registration succeeds.
+    /// Intended for queue command handlers.
+    /// </summary>
+    /// <param name="request">Registration payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Processing outcome.</returns>
+    Task<ProcessRegisterUserResult> ProcessRegisterUserAsync(
         RegisterUserRequest request,
         CancellationToken cancellationToken = default
     );

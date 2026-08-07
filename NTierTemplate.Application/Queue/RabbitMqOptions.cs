@@ -1,7 +1,7 @@
-namespace NTierTemplate.Queue.RabbitMq;
+namespace NTierTemplate.Application.Queue;
 
 /// <summary>
-/// RabbitMQ connection and queue settings for the worker host.
+/// RabbitMQ connection and queue settings shared by publishers and consumers.
 /// </summary>
 public class RabbitMqOptions
 {

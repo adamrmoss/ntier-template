@@ -1,8 +1,11 @@
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NTierTemplate.Application.Queue;
+using NTierTemplate.Messaging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -79,31 +82,45 @@ public class QueueConsumerService(
     )
     {
         var body = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
+        CommandEnvelope? envelope;
+
+        try
+        {
+            envelope = JsonSerializer.Deserialize<CommandEnvelope>(body);
+        }
+        catch (JsonException exception)
+        {
+            logger.LogError(exception, "Queue message was not a valid command envelope.");
+            await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, cancellationToken);
+            return;
+        }
+
+        if (envelope == null || string.IsNullOrWhiteSpace(envelope.CommandName))
+        {
+            logger.LogWarning("Queue message envelope was empty or missing a command type name.");
+            await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, cancellationToken);
+            return;
+        }
 
         try
         {
             using var scope = scopeFactory.CreateScope();
+            var queueApplicationService = scope.ServiceProvider.GetRequiredService<IQueueApplicationService>();
 
-            logger.LogInformation(
-                "Received message on {RoutingKey}: {Body}",
-                eventArgs.RoutingKey,
-                body
-            );
-
-            // Deserialize domain command contracts and invoke Application services here.
+            await queueApplicationService.ProcessAsync(envelope, cancellationToken);
 
             await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, cancellationToken);
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Failed to process queue message.");
-
-            await channel.BasicNackAsync(
-                eventArgs.DeliveryTag,
-                multiple: false,
-                requeue: false,
-                cancellationToken
+            logger.LogError(
+                exception,
+                "Unhandled error processing command {CommandName} message {MessageId}.",
+                envelope.CommandName,
+                envelope.MessageId
             );
+
+            await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, cancellationToken);
         }
     }
 }

@@ -10,7 +10,8 @@ alwaysApply: false
 
 ## What Lives Here
 
-- Application service interfaces and implementations (`IUserApplicationService`, `UserApplicationService`)
+- Application service interfaces and implementations (`IUserApplicationService`, `UserApplicationService`, `IAuthApplicationService`, …)
+- Use-case orchestration types must use the **`ApplicationService`** suffix (interface: `I{Area}ApplicationService`, class: `{Area}ApplicationService`). Bare `Service` names are too vague — infrastructure adapters may use `Client`, `Dao`, etc.
 - Common DI extension methods (e.g. `AddNTierTemplateApplication`, `AddNTierTemplateData`) called by Api, Cli, and Queue hosts
 - Use-case workflows that span aggregates or multiple DAOs
 - Transaction boundary decisions for a use case
@@ -25,15 +26,28 @@ Application **project-references** Data and registers DAO implementations via co
 
 ## IoC
 
-- Each host (`Api`, `Cli`, `Queue`) builds its own service provider
-- Hosts call Application's shared registration extensions — do not copy-paste DI setup across hosts
-- Host-specific services (Kestrel, CLI parser, RabbitMQ consumer) are registered in the host project on top of Application's common wiring
+- Centralize shared registration in `NTierTemplate.Application/Ioc/` — `DaoRegistrar`, `ServiceRegistrar`, `QueueRegistrar`, `SerializerRegistrar`, and `AddNTierTemplateApplication`
+- Each host calls **`AddNTierTemplateApplication(configuration)` once** for DAOs, application services, queue services, EF Core, and Identity
+- Hosts register **only what differs** per entry point — e.g. `HttpPrincipalContainer`, `CliPrincipalContainer`, `QueuePrincipalContainer`, JWT/`ITokenService`, RabbitMQ hosted services, CORS, Kestrel
+- Do not register DAOs, application services, or queue services in Api, Cli, or Queue `Program.cs`
 
 ## CQRS
 
 - **Queries**: Api (and Cli when appropriate) call Application services **directly** and return results synchronously
 - **Commands / side effects**: Api and Cli **may** call Application directly, but **usually enqueue a message** for `NTierTemplate.Queue/` to process asynchronously
 - Keep query paths read-focused; keep command paths write-focused. Share types through Domain, not through Data
+
+## Queue Interaction (CQRS-lite)
+
+Entry points (Api, Cli) interact with the queue through **one Application service** — e.g. `IQueueApplicationService` — not a separate publisher/dispatcher/retry service graph.
+
+- **Enqueue**: entry points call that service to publish a domain command envelope
+- **Process**: the Queue worker calls the same service (or sibling methods on it) to execute commands and handle retry bookkeeping
+- Command identity uses the **CLR type name** (`typeof(TCommand).FullName`) on the envelope — not separate string constants or a `CommandNames` table; resolve with `Type.GetType` / assembly lookup and deserialize the payload
+- Avoid extra indirection (`ICommandPublisher`, `ICommandDispatcher`, `IFailedCommandService`, etc.) unless the user explicitly asks for it
+- `UnitOfWork` and failed-command persistence live in Data; orchestration stays in Application
+
+Agree on shape with the user before adding types or wiring.
 
 ## Entry Point Rules
 

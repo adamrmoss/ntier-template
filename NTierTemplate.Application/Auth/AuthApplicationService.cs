@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Options;
 using NTierTemplate.Application.Email;
+using NTierTemplate.Application.Queue;
 using NTierTemplate.Application.Users;
 using NTierTemplate.Users;
 
@@ -9,12 +11,34 @@ namespace NTierTemplate.Application.Auth;
 /// </summary>
 public class AuthApplicationService(
     IUserApplicationService userApplicationService,
-    IAuthEmailService authEmailService
+    IQueueApplicationService queueApplicationService,
+    IEmailClient emailClient,
+    IOptions<AppOptions> appOptions
 )
     : IAuthApplicationService
 {
+    private readonly AppOptions options = appOptions.Value;
+
     /// <inheritdoc />
-    public async Task<RegistrationResult> RegisterAndSendConfirmationAsync(
+    public Task<Guid> EnqueueRegisterUserAsync(
+        RegisterUserRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var command = new RegisterUserCommand
+        {
+            Email = request.Email,
+            Password = request.Password,
+            DisplayName = request.DisplayName,
+            FirstName = request.FirstName ?? string.Empty,
+            LastName = request.LastName ?? string.Empty,
+        };
+
+        return queueApplicationService.EnqueueAsync(command, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<ProcessRegisterUserResult> ProcessRegisterUserAsync(
         RegisterUserRequest request,
         CancellationToken cancellationToken = default
     )
@@ -23,10 +47,14 @@ public class AuthApplicationService(
 
         if (!createResult.Succeeded || createResult.User == null)
         {
-            return new RegistrationResult
+            var isDuplicateEmail = createResult.Errors.Any(error =>
+                error.Contains("already exists", StringComparison.OrdinalIgnoreCase));
+
+            return new ProcessRegisterUserResult
             {
-                CreateResult = createResult,
-                ConfirmationEmailSent = false,
+                Succeeded = false,
+                IsDuplicateEmail = isDuplicateEmail,
+                ErrorMessage = createResult.Errors.FirstOrDefault() ?? "Registration failed.",
             };
         }
 
@@ -37,23 +65,18 @@ public class AuthApplicationService(
 
         if (confirmationToken == null)
         {
-            return new RegistrationResult
+            return new ProcessRegisterUserResult
             {
-                CreateResult = createResult,
-                ConfirmationEmailSent = false,
+                Succeeded = false,
+                ErrorMessage = "Could not generate email confirmation token.",
             };
         }
 
-        await authEmailService.SendEmailConfirmationAsync(
-            createResult.User,
-            confirmationToken,
-            cancellationToken
-        );
+        await this.SendEmailConfirmationAsync(createResult.User, confirmationToken, cancellationToken);
 
-        return new RegistrationResult
+        return new ProcessRegisterUserResult
         {
-            CreateResult = createResult,
-            ConfirmationEmailSent = true,
+            Succeeded = true,
         };
     }
 
@@ -74,7 +97,7 @@ public class AuthApplicationService(
 
         if (token != null)
         {
-            await authEmailService.SendEmailConfirmationAsync(user, token, cancellationToken);
+            await this.SendEmailConfirmationAsync(user, token, cancellationToken);
         }
     }
 
@@ -85,7 +108,67 @@ public class AuthApplicationService(
 
         if (token != null)
         {
-            await authEmailService.SendPasswordResetAsync(email, token, cancellationToken);
+            await this.SendPasswordResetAsync(email, token, cancellationToken);
         }
+    }
+
+    private Task SendEmailConfirmationAsync(
+        User user,
+        string confirmationToken,
+        CancellationToken cancellationToken
+    )
+    {
+        var encodedToken = Uri.EscapeDataString(confirmationToken);
+        var link = $"{this.options.FrontendBaseUrl.TrimEnd('/')}/confirm-email?userId={user.Id}&token={encodedToken}";
+        var subject = "Confirm your account";
+        var plainText =
+            $"Welcome.\n\nConfirm your email address by opening this link:\n{link}\n\nIf you did not create an account, you can ignore this message.";
+        var htmlBody = $"""
+            <p>Welcome.</p>
+            <p><a href="{link}">Confirm your email address</a></p>
+            <p>If you did not create an account, you can ignore this message.</p>
+            """;
+
+        return emailClient.SendAsync(
+            new EmailMessage
+            {
+                ToAddress = user.Email,
+                Subject = subject,
+                PlainTextBody = plainText,
+                HtmlBody = htmlBody,
+            },
+            cancellationToken
+        );
+    }
+
+    private Task SendPasswordResetAsync(
+        string email,
+        string resetToken,
+        CancellationToken cancellationToken
+    )
+    {
+        var encodedEmail = Uri.EscapeDataString(email);
+        var encodedToken = Uri.EscapeDataString(resetToken);
+        var link =
+            $"{this.options.FrontendBaseUrl.TrimEnd('/')}/reset-password?email={encodedEmail}&token={encodedToken}";
+        var subject = "Reset your password";
+        var plainText =
+            $"A password reset was requested for your account.\n\nReset your password by opening this link:\n{link}\n\nIf you did not request a reset, you can ignore this message.";
+        var htmlBody = $"""
+            <p>A password reset was requested for your account.</p>
+            <p><a href="{link}">Reset your password</a></p>
+            <p>If you did not request a reset, you can ignore this message.</p>
+            """;
+
+        return emailClient.SendAsync(
+            new EmailMessage
+            {
+                ToAddress = email,
+                Subject = subject,
+                PlainTextBody = plainText,
+                HtmlBody = htmlBody,
+            },
+            cancellationToken
+        );
     }
 }

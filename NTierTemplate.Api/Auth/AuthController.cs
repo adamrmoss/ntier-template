@@ -31,7 +31,14 @@ public class AuthController(
     [AllowAnonymous]
     public async Task<IActionResult> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
-        var result = await authApplicationService.RegisterAndSendConfirmationAsync(
+        var existingUser = await userApplicationService.GetByEmailAsync(request.Email, cancellationToken);
+
+        if (existingUser != null)
+        {
+            return this.Conflict(new { message = "An account with this email already exists." });
+        }
+
+        var messageId = await authApplicationService.EnqueueRegisterUserAsync(
             new RegisterUserRequest
             {
                 Email = request.Email,
@@ -43,32 +50,10 @@ public class AuthController(
             cancellationToken
         );
 
-        if (!result.CreateResult.Succeeded)
+        return this.Accepted(new
         {
-            if (result.CreateResult.Errors.Any(error =>
-                    error.Contains("already exists", StringComparison.OrdinalIgnoreCase)))
-            {
-                return this.Conflict(new { message = result.CreateResult.Errors[0] });
-            }
-
-            return this.BadRequest(new
-            {
-                message = "Registration failed.",
-                errors = result.CreateResult.Errors,
-            });
-        }
-
-        if (!result.ConfirmationEmailSent)
-        {
-            return this.StatusCode(
-                StatusCodes.Status500InternalServerError,
-                new { message = "Registration succeeded but confirmation email could not be sent." }
-            );
-        }
-
-        return this.OkJson(new MessageResponse
-        {
-            Message = "Check your email to confirm your account before signing in.",
+            message = "Registration accepted. Check your email to confirm your account before signing in.",
+            messageId,
         });
     }
 

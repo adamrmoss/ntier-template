@@ -49,6 +49,26 @@
                             {
                                 "glob": "**/*",
                                 "input": "public"
+                            },
+                            {
+                                "glob": "account_circle.svg",
+                                "input": "node_modules/@material-design-icons/svg/filled",
+                                "output": "icons"
+                            },
+                            {
+                                "glob": "login.svg",
+                                "input": "node_modules/@material-design-icons/svg/filled",
+                                "output": "icons"
+                            },
+                            {
+                                "glob": "logout.svg",
+                                "input": "node_modules/@material-design-icons/svg/filled",
+                                "output": "icons"
+                            },
+                            {
+                                "glob": "person_add.svg",
+                                "input": "node_modules/@material-design-icons/svg/filled",
+                                "output": "icons"
                             }
                         ],
                         "styles": [

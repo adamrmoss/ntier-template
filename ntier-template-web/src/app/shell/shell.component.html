@@ -9,7 +9,7 @@
         class="shell-toolbar__account"
         [matMenuTriggerFor]="accountMenu"
         aria-label="Account menu">
-        <mat-icon>account_circle</mat-icon>
+        <mat-icon svgIcon="account_circle" />
         <span class="shell-toolbar__account-label">{{ userLabel }}</span>
     </button>
 
@@ -17,18 +17,18 @@
         @if (isAuthenticated)
         {
             <button mat-menu-item type="button" (click)="onLogout()">
-                <mat-icon>logout</mat-icon>
+                <mat-icon svgIcon="logout" />
                 <span>Sign out</span>
             </button>
         }
         @else
         {
             <button mat-menu-item type="button" (click)="onLogin()">
-                <mat-icon>login</mat-icon>
+                <mat-icon svgIcon="login" />
                 <span>Sign in</span>
             </button>
             <button mat-menu-item type="button" (click)="onRegister()">
-                <mat-icon>person_add</mat-icon>
+                <mat-icon svgIcon="person_add" />
                 <span>Create account</span>
             </button>
         }

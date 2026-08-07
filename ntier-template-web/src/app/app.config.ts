@@ -1,12 +1,9 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { ApplicationConfig, inject, isDevMode, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
-import { provideEffects } from '@ngrx/effects';
-import { provideStore } from '@ngrx/store';
-import { provideStoreDevtools } from '@ngrx/store-devtools';
 
 import { authInterceptor } from './auth/auth.interceptor';
 import { AuthService } from './auth/auth.service';
@@ -38,8 +35,5 @@ export const appConfig: ApplicationConfig =
             // Register self-hosted SVG icons before the first render.
             registerAppIcons(inject(MatIconRegistry), inject(DomSanitizer));
         }),
-        provideStore(),
-        provideEffects(),
-        provideStoreDevtools({ maxAge: 25, logOnly: !isDevMode() }),
     ],
 };

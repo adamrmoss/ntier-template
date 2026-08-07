@@ -25,7 +25,11 @@ public class Program
         // Configure host-specific services and shared application wiring.
         builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            .AddJsonOptions(jsonOptions =>
+            {
+                SerializerRegistrar.ConfigureCamelCase(jsonOptions.JsonSerializerOptions);
+            });
 
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {

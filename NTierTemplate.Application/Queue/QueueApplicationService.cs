@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NTierTemplate;
+using NTierTemplate.Application.Ioc;
 using NTierTemplate.Data.FailedCommands;
 using NTierTemplate.Messaging;
 using RabbitMQ.Client;
@@ -17,6 +18,7 @@ namespace NTierTemplate.Application.Queue;
 public sealed class QueueApplicationService(
     IServiceScopeFactory scopeFactory,
     IOptions<RabbitMqOptions> rabbitMqOptions,
+    IOptionsMonitor<JsonSerializerOptions> jsonOptionsMonitor,
     ILogger<QueueApplicationService> logger
 )
     : IQueueApplicationService, IHostedService, IAsyncDisposable
@@ -26,6 +28,8 @@ public sealed class QueueApplicationService(
     private static readonly TimeSpan RetryPollInterval = TimeSpan.FromSeconds(30);
 
     private readonly RabbitMqOptions options = rabbitMqOptions.Value;
+    private readonly JsonSerializerOptions pascalCaseJsonOptions =
+        jsonOptionsMonitor.Get(SerializerRegistrar.PascalCaseOptionsName);
     private readonly SemaphoreSlim initializationLock = new(1, 1);
     private IConnection? connection;
     private IChannel? channel;
@@ -39,10 +43,8 @@ public sealed class QueueApplicationService(
         // Wrap the command in a queue envelope.
         var envelope = new CommandEnvelope
         {
-            CommandName = typeof(TCommand).AssemblyQualifiedName
-                ?? typeof(TCommand).FullName
-                ?? typeof(TCommand).Name,
-            Payload = JsonSerializer.Serialize(command),
+            CommandName = typeof(TCommand).FullName ?? typeof(TCommand).Name,
+            Payload = JsonSerializer.Serialize(command, this.pascalCaseJsonOptions),
         };
 
         // Publish the envelope to RabbitMQ.
@@ -54,29 +56,53 @@ public sealed class QueueApplicationService(
     /// <inheritdoc />
     public async Task ProcessAsync(CommandEnvelope envelope, CancellationToken cancellationToken = default)
     {
-        // Handlers are scoped; resolve them in a per-message scope.
-        using var scope = scopeFactory.CreateScope();
-        var serviceProvider = scope.ServiceProvider;
-
-        // Execute the command and capture the outcome.
-        var result = await this.ExecuteAsync(envelope, serviceProvider, cancellationToken);
-        var failedCommandDao = serviceProvider.GetRequiredService<IFailedCommandDao>();
-
-        if (result.Succeeded)
+        try
         {
-            // Clear any prior failed-command record on success.
-            await failedCommandDao.MarkSucceededAsync(envelope.MessageId, cancellationToken);
-            return;
-        }
+            // Handlers are scoped; resolve them in a per-message scope.
+            using var scope = scopeFactory.CreateScope();
+            var serviceProvider = scope.ServiceProvider;
 
-        // Schedule a retry or mark the command exhausted.
-        await ScheduleRetryAsync(
-            failedCommandDao,
-            envelope,
-            result.ErrorMessage ?? "Command processing failed.",
-            result.IsPermanentFailure,
-            cancellationToken
-        );
+            // Execute the command and capture the outcome.
+            var result = await this.ExecuteAsync(envelope, serviceProvider, cancellationToken);
+            var failedCommandDao = serviceProvider.GetRequiredService<IFailedCommandDao>();
+
+            if (result.Succeeded)
+            {
+                // Clear any prior failed-command record on success.
+                await failedCommandDao.MarkSucceededAsync(envelope.MessageId, cancellationToken);
+                return;
+            }
+
+            // Schedule a retry or mark the command exhausted.
+            await ScheduleRetryAsync(
+                failedCommandDao,
+                envelope,
+                result.ErrorMessage ?? "Command processing failed.",
+                result.IsPermanentFailure,
+                cancellationToken
+            );
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(
+                exception,
+                "Unhandled error processing command {CommandName} message {MessageId}.",
+                envelope.CommandName,
+                envelope.MessageId
+            );
+
+            // Record a transient failure so the retry sweep can republish the command.
+            using var scope = scopeFactory.CreateScope();
+            var failedCommandDao = scope.ServiceProvider.GetRequiredService<IFailedCommandDao>();
+
+            await ScheduleRetryAsync(
+                failedCommandDao,
+                envelope,
+                exception.Message,
+                isPermanentFailure: false,
+                cancellationToken
+            );
+        }
     }
 
     /// <inheritdoc />
@@ -232,7 +258,7 @@ public sealed class QueueApplicationService(
         try
         {
             // Deserialize the payload into the resolved command type.
-            command = JsonSerializer.Deserialize(envelope.Payload, commandType);
+            command = JsonSerializer.Deserialize(envelope.Payload, commandType, this.pascalCaseJsonOptions);
         }
         catch (JsonException exception)
         {
@@ -271,16 +297,16 @@ public sealed class QueueApplicationService(
 
     private static Type? ResolveCommandType(string commandTypeName)
     {
-        // Try assembly-qualified name first (what EnqueueAsync writes today).
-        var commandType = Type.GetType(commandTypeName, throwOnError: false);
+        // Prefer the stable full name written by EnqueueAsync today.
+        var commandType = typeof(AssemblyMarker).Assembly.GetType(commandTypeName);
 
         if (commandType != null)
         {
             return commandType;
         }
 
-        // Fall back to full name in the domain assembly (older queued messages).
-        return typeof(AssemblyMarker).Assembly.GetType(commandTypeName);
+        // Fall back to assembly-qualified names from older queued messages.
+        return Type.GetType(commandTypeName, throwOnError: false);
     }
 
     private async Task PublishAsync(CommandEnvelope envelope, CancellationToken cancellationToken)
@@ -289,7 +315,7 @@ public sealed class QueueApplicationService(
         await this.EnsureChannelAsync(cancellationToken);
 
         // Serialize the envelope and set persistent delivery properties.
-        var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(envelope));
+        var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(envelope, this.pascalCaseJsonOptions));
         var properties = new BasicProperties
         {
             Persistent = true,

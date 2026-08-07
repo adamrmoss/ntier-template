@@ -143,6 +143,9 @@ public class UserApplicationServiceTests
         this.userDao
             .Setup(dao => dao.GetByEmailAsync("existing@example.com", It.IsAny<CancellationToken>()))
             .ReturnsAsync(this.CreateUser(email: "existing@example.com"));
+        this.userDao
+            .Setup(dao => dao.IsEmailConfirmedAsync("existing@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         var result = await this.service.ProcessRegisterUserAsync(
             new RegisterUserRequest
@@ -155,12 +158,46 @@ public class UserApplicationServiceTests
         result.Succeeded.Should().BeFalse();
         result.IsDuplicateEmail.Should().BeTrue();
         this.unitOfWork.Verify(
-            work => work.RollbackAsync(It.IsAny<CancellationToken>()),
-            Times.Once
+            work => work.BeginTransactionAsync(It.IsAny<CancellationToken>()),
+            Times.Never
         );
         this.emailClient.Verify(
             client => client.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()),
             Times.Never
+        );
+    }
+
+    [Test]
+    public async Task ProcessRegisterUserAsync_ResendsConfirmation_WhenUnconfirmedAccountExists()
+    {
+        var existingUser = this.CreateUser(email: "pending@example.com");
+
+        this.userDao
+            .Setup(dao => dao.GetByEmailAsync("pending@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingUser);
+        this.userDao
+            .Setup(dao => dao.IsEmailConfirmedAsync("pending@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        this.userDao
+            .Setup(dao => dao.GenerateEmailConfirmationTokenAsync(existingUser.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("confirmation-token");
+
+        var result = await this.service.ProcessRegisterUserAsync(
+            new RegisterUserRequest
+            {
+                Email = "pending@example.com",
+                Password = "Password1",
+            }
+        );
+
+        result.Succeeded.Should().BeTrue();
+        this.unitOfWork.Verify(
+            work => work.BeginTransactionAsync(It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+        this.emailClient.Verify(
+            client => client.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()),
+            Times.Once
         );
     }
 

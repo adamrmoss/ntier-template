@@ -1,5 +1,5 @@
 /**
- * Signed-in account profile returned by `/auth/me`.
+ * Signed-in account profile returned by `/user/current`.
  */
 export interface User
 {

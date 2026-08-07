@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -7,23 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { BehaviorSubject } from 'rxjs';
 
 import { AuthService } from '../auth.service';
-
-/**
- * Validate that password and confirm-password fields match.
- */
-function passwordsMatch(control: AbstractControl): ValidationErrors | null
-{
-    const password = control.get('password')?.value;
-    const confirmPassword = control.get('confirmPassword')?.value;
-
-    // Reject mismatched password fields.
-    if (password !== confirmPassword)
-    {
-        return { passwordMismatch: true };
-    }
-
-    return null;
-}
+import { passwordsMatch } from '../passwords-match.validator';
 
 /**
  * Registration dialog opened via {@link AuthDialogService.openRegister}.

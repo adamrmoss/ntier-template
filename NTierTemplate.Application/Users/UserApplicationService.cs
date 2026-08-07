@@ -56,6 +56,24 @@ public class UserApplicationService(
     {
         try
         {
+            // Retry idempotently when an unconfirmed account already exists.
+            var existingUser = await userDao.GetByEmailAsync(request.Email, cancellationToken);
+
+            if (existingUser != null)
+            {
+                if (await userDao.IsEmailConfirmedAsync(request.Email, cancellationToken))
+                {
+                    return new ProcessRegisterUserResult
+                    {
+                        Succeeded = false,
+                        IsDuplicateEmail = true,
+                        ErrorMessage = "An account with that email already exists.",
+                    };
+                }
+
+                return await this.ResendRegistrationConfirmationAsync(existingUser, cancellationToken);
+            }
+
             // Run registration inside a transaction boundary.
             await unitOfWork.BeginTransactionAsync(cancellationToken);
 
@@ -96,16 +114,14 @@ public class UserApplicationService(
                 };
             }
 
-            // Send the confirmation email to the new user.
-            await this.SendEmailConfirmationAsync(createResult.User, confirmationToken, cancellationToken);
-
-            // Commit the registration and confirmation email work.
+            // Commit the account before sending email outside the transaction.
             await unitOfWork.CommitAsync(cancellationToken);
 
-            return new ProcessRegisterUserResult
-            {
-                Succeeded = true,
-            };
+            return await this.SendRegistrationConfirmationAsync(
+                createResult.User,
+                confirmationToken,
+                cancellationToken
+            );
         }
         catch (Exception exception)
         {
@@ -247,6 +263,58 @@ public class UserApplicationService(
     )
     {
         return userDao.ResetPasswordAsync(email, token, newPassword, cancellationToken);
+    }
+
+    private async Task<ProcessRegisterUserResult> ResendRegistrationConfirmationAsync(
+        User user,
+        CancellationToken cancellationToken
+    )
+    {
+        // Generate a fresh confirmation token for the existing unconfirmed account.
+        var confirmationToken = await userDao.GenerateEmailConfirmationTokenAsync(user.Id, cancellationToken);
+
+        if (confirmationToken == null)
+        {
+            return new ProcessRegisterUserResult
+            {
+                Succeeded = false,
+                ErrorMessage = "Could not generate email confirmation token.",
+            };
+        }
+
+        return await this.SendRegistrationConfirmationAsync(user, confirmationToken, cancellationToken);
+    }
+
+    private async Task<ProcessRegisterUserResult> SendRegistrationConfirmationAsync(
+        User user,
+        string confirmationToken,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            // Send email outside the database transaction so retries can resend safely.
+            await this.SendEmailConfirmationAsync(user, confirmationToken, cancellationToken);
+
+            return new ProcessRegisterUserResult
+            {
+                Succeeded = true,
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                exception,
+                "Failed to send registration confirmation email to {Email}.",
+                user.Email
+            );
+
+            return new ProcessRegisterUserResult
+            {
+                Succeeded = false,
+                ErrorMessage = exception.Message,
+            };
+        }
     }
 
     private Task SendEmailConfirmationAsync(

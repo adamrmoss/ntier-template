@@ -97,6 +97,6 @@ export class AuthApiService
      */
     public getCurrentUser(): Observable<User>
     {
-        return this.http.get<User>(`${API_BASE_URL}/auth/me`);
+        return this.http.get<User>(`${API_BASE_URL}/user/current`);
     }
 }

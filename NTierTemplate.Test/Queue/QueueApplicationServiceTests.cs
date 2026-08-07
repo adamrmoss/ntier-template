@@ -1,7 +1,9 @@
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
+using NTierTemplate.Application.Ioc;
 using NTierTemplate.Application.Queue;
 using NTierTemplate.Data.FailedCommands;
 using NTierTemplate.Messaging;
@@ -16,6 +18,7 @@ public class QueueApplicationServiceTests
     private Mock<IServiceScopeFactory> scopeFactory = null!;
     private Mock<IServiceScope> scope = null!;
     private Mock<IServiceProvider> serviceProvider = null!;
+    private Mock<IOptionsMonitor<JsonSerializerOptions>> jsonOptionsMonitor = null!;
     private QueueApplicationService service = null!;
 
     [SetUp]
@@ -35,9 +38,18 @@ public class QueueApplicationServiceTests
             .Setup(p => p.GetService(typeof(IEnumerable<ICommandHandler>)))
             .Returns(Array.Empty<ICommandHandler>());
 
+        var pascalCaseJsonOptions = new JsonSerializerOptions();
+        SerializerRegistrar.ConfigurePascalCase(pascalCaseJsonOptions);
+
+        this.jsonOptionsMonitor = new Mock<IOptionsMonitor<JsonSerializerOptions>>();
+        this.jsonOptionsMonitor
+            .Setup(monitor => monitor.Get(SerializerRegistrar.PascalCaseOptionsName))
+            .Returns(pascalCaseJsonOptions);
+
         this.service = new QueueApplicationService(
             this.scopeFactory.Object,
             Options.Create(new RabbitMqOptions()),
+            this.jsonOptionsMonitor.Object,
             NullLogger<QueueApplicationService>.Instance
         );
     }

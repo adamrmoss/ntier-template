@@ -249,24 +249,4 @@ public class AuthController(
 
         return this.NoContent();
     }
-
-    /// <summary>
-    /// Return the authenticated user's profile.
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Current user profile.</returns>
-    [HttpGet("me")]
-    [Authorize]
-    public async Task<IActionResult> GetCurrentUser(CancellationToken cancellationToken)
-    {
-        // Resolve the authenticated user from the current principal.
-        var user = await authApplicationService.GetCurrentUserAsync(cancellationToken);
-
-        if (user == null)
-        {
-            return this.Unauthorized();
-        }
-
-        return this.OkJson(user);
-    }
 }

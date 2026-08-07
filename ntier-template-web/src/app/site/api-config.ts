@@ -8,7 +8,7 @@ export function resolveApiBaseUrl(): string
         return 'http://localhost:5271';
     }
 
-    return 'https://api.example.com';
+    return 'https://api.ntier-template.com';
 }
 
 export const API_BASE_URL = resolveApiBaseUrl();

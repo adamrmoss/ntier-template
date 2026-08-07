@@ -87,6 +87,37 @@
                 "fallbackVariableName": "webPrefixFromName"
             },
             "replaces": "ntier"
+        },
+        "domainNameOverride": {
+            "type": "parameter",
+            "datatype": "string",
+            "description": "Production domain name (default: {kebab-name}.com)"
+        },
+        "domainNameDefault": {
+            "type": "generated",
+            "generator": "combine",
+            "parameters": {
+                "symbols": [
+                    {
+                        "type": "ref",
+                        "value": "kebabName"
+                    },
+                    {
+                        "type": "literal",
+                        "value": ".com"
+                    }
+                ],
+                "separator": ""
+            }
+        },
+        "domainName": {
+            "type": "generated",
+            "generator": "coalesce",
+            "parameters": {
+                "sourceVariableName": "domainNameOverride",
+                "fallbackVariableName": "domainNameDefault"
+            },
+            "replaces": "ntier-template.com"
         }
     },
     "sources": [

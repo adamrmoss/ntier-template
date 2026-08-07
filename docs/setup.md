@@ -148,31 +148,10 @@ sudo apt install -y nginx
 sudo systemctl enable --now nginx
 ```
 
-Create a site config for the static Angular bundle deployed to `/opt/ntier-template/web`:
+Install the site config from the repo (see `nginx.conf` at the repo root — apex, `www`, and `api` hosts, Cloudflare-friendly HTTP-only origin):
 
 ```bash
-sudo tee /etc/nginx/sites-available/ntier-template <<'EOF'
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-
-    root /opt/ntier-template/web;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-EOF
-```
-
-Enable the site and disable the default welcome page if it conflicts:
-
-```bash
-sudo ln -sf /etc/nginx/sites-available/ntier-template /etc/nginx/sites-enabled/ntier-template
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo nginx -t
-sudo systemctl reload nginx
+./scripts/install-nginx.sh
 ```
 
 Deploy the production web build (from the repo root):
@@ -181,4 +160,29 @@ Deploy the production web build (from the repo root):
 ./scripts/deploy-web.sh
 ```
 
-The API runs separately (default dev URL `http://localhost:5271`). Production API hostname and TLS are configured outside this static site block — update `ntier-template-web/src/app/site/api-config.ts` for non-localhost deployments.
+Ensure the API is running locally on port `5271` (see `NTierTemplate.Api/Properties/launchSettings.json`). nginx proxies `api.{domain}` to that upstream.
+
+## systemd
+
+Install API and queue unit files from their project directories (`NTierTemplate.Api/ntier-template-api.service`, `NTierTemplate.Queue/ntier-template-queue.service`):
+
+```bash
+./scripts/install-systemd.sh
+```
+
+Create local settings if needed (`./scripts/create-settings.sh`) and edit `NTierTemplate.Api/appsettings.json` with production values before deploy.
+
+Deploy the API build (from the repo root):
+
+```bash
+./scripts/deploy-api.sh
+./scripts/restart-api.sh
+```
+
+Follow API logs:
+
+```bash
+./scripts/log-api.sh
+```
+
+The queue worker unit is enabled by the same install step; deploy and restart it after RabbitMQ and `queuesettings.json` are configured.

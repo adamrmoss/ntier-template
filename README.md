@@ -78,16 +78,12 @@ Ensure local settings exist (includes `RabbitMq` and database connection section
 
 Edit `NTierTemplate.Queue/queuesettings.json` with your MySQL and RabbitMQ credentials.
 
-Run the worker:
-
-```bash
-./scripts/queue.sh
-```
-
-Or directly:
+Run the worker locally:
 
 ```bash
 dotnet run --project NTierTemplate.Queue/NTierTemplate.Queue.csproj
 ```
+
+Production: deploy to `/opt/ntier-template/queue` and use the `ntier-template-queue` systemd unit (see [docs/setup.md](docs/setup.md)).
 
 The worker declares a durable queue named in `RabbitMq:QueueName` (default `ntier-template`) and waits for messages. Command handlers deserialize domain contracts and call Application services as they are added.

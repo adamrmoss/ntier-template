@@ -3,9 +3,6 @@
 #
 # Runs `npm run build` in ntier-template-web/, then rsyncs
 # dist/ntier-template-web/browser/ to the host web root (requires sudo).
-#
-# Usage:
-#   ./scripts/deploy-web.sh
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

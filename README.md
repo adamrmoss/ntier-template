@@ -100,13 +100,13 @@ FLUSH PRIVILEGES;
 SQL
 ```
 
-Create local database settings from the committed example file:
+Create local settings files from committed examples (`example.*.json` → matching settings file in the same directory):
 
 ```bash
-./scripts/create-dbsettings.sh
+./scripts/create-settings.sh
 ```
 
-Edit `NTierTemplate.Data/dbsettings.json` and replace `CHANGE_ME` with the `ntier` user password.
+Edit the generated files with local values — for example, set the real password in `NTierTemplate.Data/dbsettings.json`.
 
 After the API project exists, generate the initial migration:
 

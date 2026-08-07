@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTierTemplate.Data", "NTier
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTierTemplate.Application", "NTierTemplate.Application\NTierTemplate.Application.csproj", "{0A2FFF4B-752C-4A69-9F48-BDD2076FB9EE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTierTemplate.Test", "NTierTemplate.Test\NTierTemplate.Test.csproj", "{0E4FF03E-517D-441E-B4FB-2BEED317D957}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{0A2FFF4B-752C-4A69-9F48-BDD2076FB9EE}.Release|x64.Build.0 = Release|Any CPU
 		{0A2FFF4B-752C-4A69-9F48-BDD2076FB9EE}.Release|x86.ActiveCfg = Release|Any CPU
 		{0A2FFF4B-752C-4A69-9F48-BDD2076FB9EE}.Release|x86.Build.0 = Release|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Debug|x64.Build.0 = Debug|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Debug|x86.Build.0 = Debug|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Release|x64.ActiveCfg = Release|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Release|x64.Build.0 = Release|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Release|x86.ActiveCfg = Release|Any CPU
+		{0E4FF03E-517D-441E-B4FB-2BEED317D957}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

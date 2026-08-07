@@ -26,7 +26,8 @@ We use unit tests **sparingly**. All non-configuration logic belongs in **Domain
 
 ## Conventions
 
-- Mock DAO interfaces (`IUserDao`, etc.) when testing Application services — never mock EF or Identity types
+- Mock DAO interfaces (`IUserDao`, etc.) when testing Application services — use **Moq**; never mock EF or Identity types
+- Use **FluentAssertions** for expectations (`value.Should().Be(...)`, `collection.Should().Contain(...)`, etc.)
 - Add tests only when they protect meaningful behavior; do not test trivial getters or framework boilerplate
 - Keep test types and methods domain-named, matching the code under test
 

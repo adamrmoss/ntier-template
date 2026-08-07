@@ -7,9 +7,10 @@ using NTierTemplate.Application.Queue;
 using NTierTemplate.Application.Users;
 using NTierTemplate.Data;
 using NTierTemplate.Data.Users;
+using NTierTemplate.Test.Support;
 using NTierTemplate.Users;
 
-namespace NTierTemplate.Test.Users;
+namespace NTierTemplate.Test.NTierTemplate.Application.Users;
 
 [TestFixture]
 public class UserApplicationServiceTests
@@ -42,7 +43,7 @@ public class UserApplicationServiceTests
     {
         this.userDao
             .Setup(dao => dao.GetByEmailAsync("existing@example.com", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(this.CreateUser(email: "existing@example.com"));
+            .ReturnsAsync(TestUsers.Create(email: "existing@example.com"));
 
         var result = await this.service.RegisterAsync(
             new RegisterUserRequest
@@ -74,7 +75,7 @@ public class UserApplicationServiceTests
             .ReturnsAsync(new UserCreateResult
             {
                 Succeeded = true,
-                User = this.CreateUser(email: "new@example.com"),
+                User = TestUsers.Create(email: "new@example.com"),
             });
 
         await this.service.RegisterAsync(
@@ -100,7 +101,7 @@ public class UserApplicationServiceTests
     {
         this.userDao
             .Setup(dao => dao.GetByEmailAsync("admin@example.com", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(this.CreateUser(email: "admin@example.com"));
+            .ReturnsAsync(TestUsers.Create(email: "admin@example.com"));
 
         var result = await this.service.CreateAdminAsync("admin@example.com", "password");
 
@@ -142,7 +143,7 @@ public class UserApplicationServiceTests
     {
         this.userDao
             .Setup(dao => dao.GetByEmailAsync("existing@example.com", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(this.CreateUser(email: "existing@example.com"));
+            .ReturnsAsync(TestUsers.Create(email: "existing@example.com"));
         this.userDao
             .Setup(dao => dao.IsEmailConfirmedAsync("existing@example.com", It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -170,7 +171,7 @@ public class UserApplicationServiceTests
     [Test]
     public async Task ProcessRegisterUserAsync_ResendsConfirmation_WhenUnconfirmedAccountExists()
     {
-        var existingUser = this.CreateUser(email: "pending@example.com");
+        var existingUser = TestUsers.Create(email: "pending@example.com");
 
         this.userDao
             .Setup(dao => dao.GetByEmailAsync("pending@example.com", It.IsAny<CancellationToken>()))
@@ -201,16 +202,75 @@ public class UserApplicationServiceTests
         );
     }
 
-    private User CreateUser(string email = "user@example.com")
+    [Test]
+    public async Task ProcessRegisterUserAsync_CommitsBeforeSendingEmail()
     {
-        return new User
-        {
-            Id = 1,
-            Email = email,
-            FirstName = "Test",
-            LastName = "User",
-            DisplayName = "Test User",
-            Roles = ["User"],
-        };
+        this.userDao
+            .Setup(dao => dao.GetByEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        this.userDao
+            .Setup(dao => dao.CreateAsync(It.IsAny<RegisterUserRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserCreateResult
+            {
+                Succeeded = true,
+                User = TestUsers.Create(email: "new@example.com"),
+            });
+        this.userDao
+            .Setup(dao => dao.GenerateEmailConfirmationTokenAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("confirmation-token");
+
+        var callOrder = 0;
+        this.unitOfWork
+            .Setup(work => work.CommitAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => callOrder = 1)
+            .Returns(Task.CompletedTask);
+        this.emailClient
+            .Setup(client => client.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
+            .Callback(() => callOrder.Should().Be(1))
+            .Returns(Task.CompletedTask);
+
+        var result = await this.service.ProcessRegisterUserAsync(
+            new RegisterUserRequest
+            {
+                Email = "new@example.com",
+                Password = "Password1",
+            }
+        );
+
+        result.Succeeded.Should().BeTrue();
+        this.unitOfWork.Verify(work => work.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task ResendConfirmationEmailAsync_SkipsConfirmedUsers()
+    {
+        this.userDao
+            .Setup(dao => dao.GetByEmailAsync("user@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TestUsers.Create());
+        this.userDao
+            .Setup(dao => dao.IsEmailConfirmedAsync("user@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        await this.service.ResendConfirmationEmailAsync("user@example.com");
+
+        this.userDao.Verify(
+            dao => dao.GenerateEmailConfirmationTokenAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+    }
+
+    [Test]
+    public async Task SendPasswordResetEmailAsync_SkipsMissingUsers()
+    {
+        this.userDao
+            .Setup(dao => dao.GeneratePasswordResetTokenAsync("missing@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+
+        await this.service.SendPasswordResetEmailAsync("missing@example.com");
+
+        this.emailClient.Verify(
+            client => client.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()),
+            Times.Never
+        );
     }
 }

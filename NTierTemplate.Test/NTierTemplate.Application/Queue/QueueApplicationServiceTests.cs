@@ -7,9 +7,10 @@ using NTierTemplate.Application.Ioc;
 using NTierTemplate.Application.Queue;
 using NTierTemplate.Data.FailedCommands;
 using NTierTemplate.Messaging;
+using NTierTemplate.Test.Support;
 using NTierTemplate.Users;
 
-namespace NTierTemplate.Test.Queue;
+namespace NTierTemplate.Test.NTierTemplate.Application.Queue;
 
 [TestFixture]
 public class QueueApplicationServiceTests
@@ -18,7 +19,6 @@ public class QueueApplicationServiceTests
     private Mock<IServiceScopeFactory> scopeFactory = null!;
     private Mock<IServiceScope> scope = null!;
     private Mock<IServiceProvider> serviceProvider = null!;
-    private Mock<IOptionsMonitor<JsonSerializerOptions>> jsonOptionsMonitor = null!;
     private QueueApplicationService service = null!;
 
     [SetUp]
@@ -38,18 +38,10 @@ public class QueueApplicationServiceTests
             .Setup(p => p.GetService(typeof(IEnumerable<ICommandHandler>)))
             .Returns(Array.Empty<ICommandHandler>());
 
-        var pascalCaseJsonOptions = new JsonSerializerOptions();
-        SerializerRegistrar.ConfigurePascalCase(pascalCaseJsonOptions);
-
-        this.jsonOptionsMonitor = new Mock<IOptionsMonitor<JsonSerializerOptions>>();
-        this.jsonOptionsMonitor
-            .Setup(monitor => monitor.Get(SerializerRegistrar.PascalCaseOptionsName))
-            .Returns(pascalCaseJsonOptions);
-
         this.service = new QueueApplicationService(
             this.scopeFactory.Object,
             Options.Create(new RabbitMqOptions()),
-            this.jsonOptionsMonitor.Object,
+            TestJsonOptionsMonitor.CreatePascalCaseMonitor(),
             NullLogger<QueueApplicationService>.Instance
         );
     }
@@ -109,5 +101,87 @@ public class QueueApplicationServiceTests
 
         capturedCommand.Should().NotBeNull();
         capturedCommand!.Status.Should().Be(FailedCommandStatus.Exhausted);
+    }
+
+    [Test]
+    public async Task ProcessAsync_MarksSucceeded_WhenHandlerSucceeds()
+    {
+        var messageId = Guid.NewGuid();
+        var handler = new StubCommandHandler(typeof(RegisterUserCommand), CommandHandlerResult.Success());
+
+        this.serviceProvider
+            .Setup(p => p.GetService(typeof(IEnumerable<ICommandHandler>)))
+            .Returns(new ICommandHandler[] { handler });
+
+        await this.service.ProcessAsync(
+            new CommandEnvelope
+            {
+                MessageId = messageId,
+                CommandName = typeof(RegisterUserCommand).FullName!,
+                Payload = JsonSerializer.Serialize(new RegisterUserCommand
+                {
+                    Email = "new@example.com",
+                    Password = "Password1",
+                }),
+                Attempt = 1,
+                MaxAttempts = 3,
+            }
+        );
+
+        this.failedCommandDao.Verify(
+            dao => dao.MarkSucceededAsync(messageId, It.IsAny<CancellationToken>()),
+            Times.Once
+        );
+        this.failedCommandDao.Verify(
+            dao => dao.UpsertAsync(It.IsAny<FailedCommand>(), It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+    }
+
+    [Test]
+    public async Task ProcessAsync_SchedulesRetry_WhenHandlerReturnsTransientFailure()
+    {
+        FailedCommand? capturedCommand = null;
+        var handler = new StubCommandHandler(
+            typeof(RegisterUserCommand),
+            CommandHandlerResult.TransientFailure("SMTP unavailable.")
+        );
+
+        this.serviceProvider
+            .Setup(p => p.GetService(typeof(IEnumerable<ICommandHandler>)))
+            .Returns(new ICommandHandler[] { handler });
+        this.failedCommandDao
+            .Setup(dao => dao.UpsertAsync(It.IsAny<FailedCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<FailedCommand, CancellationToken>((command, _) => capturedCommand = command)
+            .Returns(Task.CompletedTask);
+
+        await this.service.ProcessAsync(
+            new CommandEnvelope
+            {
+                MessageId = Guid.NewGuid(),
+                CommandName = typeof(RegisterUserCommand).FullName!,
+                Payload = JsonSerializer.Serialize(new RegisterUserCommand
+                {
+                    Email = "new@example.com",
+                    Password = "Password1",
+                }),
+                Attempt = 1,
+                MaxAttempts = 3,
+            }
+        );
+
+        capturedCommand.Should().NotBeNull();
+        capturedCommand!.Status.Should().Be(FailedCommandStatus.PendingRetry);
+        capturedCommand.NextRetryAtUtc.Should().NotBeNull();
+    }
+
+    private sealed class StubCommandHandler(Type commandType, CommandHandlerResult result) : ICommandHandler
+    {
+        public Type CommandType { get; } = commandType;
+
+        public Task<CommandHandlerResult> HandleAsync(object command, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(result);
+        }
     }
 }

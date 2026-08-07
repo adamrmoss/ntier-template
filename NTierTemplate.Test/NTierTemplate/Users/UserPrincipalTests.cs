@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using NTierTemplate.Users;
 
-namespace NTierTemplate.Test.Users;
+namespace NTierTemplate.Test.NTierTemplate.Users;
 
 [TestFixture]
 public class UserPrincipalTests

@@ -56,115 +56,14 @@ N-tier enterprise application: Angular client, ASP.NET Core API, CLI, and Rabbit
 
 See `.cursor/rules/` for coding standards and layer boundaries.
 
-## .NET Setup (Ubuntu)
+## Host Setup
 
-Add the Microsoft package feed and install the .NET 10 SDK (includes the `dotnet` CLI):
+Ubuntu install steps for .NET, MySQL, RabbitMQ, Node.js, nginx, database migrations, and web deploy: **[docs/setup.md](docs/setup.md)**.
 
-```bash
-wget https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
-sudo dpkg -i packages-microsoft-prod.deb
-rm packages-microsoft-prod.deb
-
-sudo apt update
-sudo apt install -y dotnet-sdk-10.0
-```
-
-Install the EF Core CLI as a global tool:
-
-```bash
-dotnet tool install --global dotnet-ef
-```
-
-Ensure global tools are on your `PATH` (add to `~/.bashrc` if needed):
-
-```bash
-export PATH="$PATH:$HOME/.dotnet/tools"
-```
-
-Verify:
-
-```bash
-dotnet --version
-dotnet ef --version
-```
-
-## Database Setup (Ubuntu)
-
-Install MySQL Server:
-
-```bash
-sudo apt update
-sudo apt install mysql-server
-sudo systemctl enable --now mysql
-```
-
-Secure the installation and set a root password when prompted:
-
-```bash
-sudo mysql_secure_installation
-```
-
-Create the application database and dedicated user (replace `your-password` with a strong password):
-
-```bash
-sudo mysql <<'SQL'
-CREATE DATABASE IF NOT EXISTS `ntier-template`
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-CREATE USER IF NOT EXISTS 'ntier'@'localhost' IDENTIFIED BY 'your-password';
-GRANT ALL PRIVILEGES ON `ntier-template`.* TO 'ntier'@'localhost';
-FLUSH PRIVILEGES;
-SQL
-```
-
-Create local settings files from committed examples (`example.*.json` → matching settings file in the same directory):
+Local settings from committed examples:
 
 ```bash
 ./scripts/create-settings.sh
-```
-
-Edit the generated files with local values — for example, set the real password in `NTierTemplate.Data/dbsettings.json`.
-
-Apply migrations:
-
-```bash
-dotnet ef migrations add InitialCreate \
-  --project NTierTemplate.Data/NTierTemplate.Data.csproj \
-  --startup-project NTierTemplate.Api/NTierTemplate.Api.csproj
-
-dotnet ef database update \
-  --project NTierTemplate.Data/NTierTemplate.Data.csproj \
-  --startup-project NTierTemplate.Api/NTierTemplate.Api.csproj
-```
-
-## RabbitMQ Setup (Ubuntu)
-
-Install and start RabbitMQ:
-
-```bash
-sudo apt update
-sudo apt install -y rabbitmq-server
-sudo systemctl enable --now rabbitmq-server
-```
-
-Optional: enable the management UI (http://localhost:15672):
-
-```bash
-sudo rabbitmq-plugins enable rabbitmq_management
-```
-
-Create a dedicated broker user (replace `your-password` with a strong password):
-
-```bash
-sudo rabbitmqctl add_user ntier your-password
-sudo rabbitmqctl set_permissions -p / ntier ".*" ".*" ".*"
-```
-
-Verify the broker is running:
-
-```bash
-sudo rabbitmqctl status
 ```
 
 ## Queue Worker

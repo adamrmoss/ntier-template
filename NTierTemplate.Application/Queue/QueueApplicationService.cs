@@ -1,13 +1,12 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using NTierTemplate.Application.Users;
-using NTierTemplate.Data;
+using NTierTemplate;
 using NTierTemplate.Data.FailedCommands;
 using NTierTemplate.Messaging;
-using NTierTemplate.Users;
 using RabbitMQ.Client;
 
 namespace NTierTemplate.Application.Queue;
@@ -19,14 +18,19 @@ public sealed class QueueApplicationService(
     IServiceScopeFactory scopeFactory,
     IOptions<RabbitMqOptions> rabbitMqOptions,
     ILogger<QueueApplicationService> logger
-) : IQueueApplicationService, IAsyncDisposable
+)
+    : IQueueApplicationService, IHostedService, IAsyncDisposable
 {
     private const int RetryBatchSize = 20;
+
+    private static readonly TimeSpan RetryPollInterval = TimeSpan.FromSeconds(30);
 
     private readonly RabbitMqOptions options = rabbitMqOptions.Value;
     private readonly SemaphoreSlim initializationLock = new(1, 1);
     private IConnection? connection;
     private IChannel? channel;
+    private CancellationTokenSource? retryLoopCancellation;
+    private Task? retryLoopTask;
 
     /// <inheritdoc />
     public async Task<Guid> EnqueueAsync<TCommand>(TCommand command, CancellationToken cancellationToken = default)
@@ -35,7 +39,9 @@ public sealed class QueueApplicationService(
         // Wrap the command in a queue envelope.
         var envelope = new CommandEnvelope
         {
-            CommandName = typeof(TCommand).FullName ?? typeof(TCommand).Name,
+            CommandName = typeof(TCommand).AssemblyQualifiedName
+                ?? typeof(TCommand).FullName
+                ?? typeof(TCommand).Name,
             Payload = JsonSerializer.Serialize(command),
         };
 
@@ -48,11 +54,13 @@ public sealed class QueueApplicationService(
     /// <inheritdoc />
     public async Task ProcessAsync(CommandEnvelope envelope, CancellationToken cancellationToken = default)
     {
-        // Execute the command and capture the outcome.
-        var result = await this.ExecuteAsync(envelope, cancellationToken);
-
+        // Handlers are scoped; resolve them in a per-message scope.
         using var scope = scopeFactory.CreateScope();
-        var failedCommandDao = scope.ServiceProvider.GetRequiredService<IFailedCommandDao>();
+        var serviceProvider = scope.ServiceProvider;
+
+        // Execute the command and capture the outcome.
+        var result = await this.ExecuteAsync(envelope, serviceProvider, cancellationToken);
+        var failedCommandDao = serviceProvider.GetRequiredService<IFailedCommandDao>();
 
         if (result.Succeeded)
         {
@@ -101,9 +109,63 @@ public sealed class QueueApplicationService(
         }
     }
 
+    /// <summary>
+    /// Start the failed-command retry sweep loop when registered as a hosted service.
+    /// </summary>
+    /// <param name="cancellationToken">Host shutdown token.</param>
+    /// <returns>A completed task once the background loop has been scheduled.</returns>
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        // Run only when the host registers this type as IHostedService (Queue worker).
+        this.retryLoopCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        this.retryLoopTask = this.RunRetryLoopAsync(this.retryLoopCancellation.Token);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Stop the failed-command retry sweep loop.
+    /// </summary>
+    /// <param name="cancellationToken">Host shutdown token.</param>
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        if (this.retryLoopCancellation == null)
+        {
+            return;
+        }
+
+        // Cancel the loop and wait for the in-flight sweep to finish.
+        await this.retryLoopCancellation.CancelAsync();
+
+        if (this.retryLoopTask != null)
+        {
+            await this.retryLoopTask.WaitAsync(cancellationToken);
+        }
+    }
+
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        // Stop the retry loop when the singleton is disposed (for example in tests).
+        if (this.retryLoopCancellation != null)
+        {
+            await this.retryLoopCancellation.CancelAsync();
+
+            if (this.retryLoopTask != null)
+            {
+                try
+                {
+                    await this.retryLoopTask;
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }
+
+            this.retryLoopCancellation.Dispose();
+            this.retryLoopCancellation = null;
+            this.retryLoopTask = null;
+        }
+
         // Close and dispose the open channel.
         if (this.channel != null)
         {
@@ -123,8 +185,36 @@ public sealed class QueueApplicationService(
         this.initializationLock.Dispose();
     }
 
-    private async Task<QueueCommandResult> ExecuteAsync(
+    private async Task RunRetryLoopAsync(CancellationToken stoppingToken)
+    {
+        // Poll for failed commands due for retry until shutdown.
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                // Republish commands that have reached their retry time.
+                await this.RetryDueAsync(stoppingToken);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                logger.LogError(exception, "Failed command retry sweep failed.");
+            }
+
+            try
+            {
+                // Wait before the next retry sweep.
+                await Task.Delay(RetryPollInterval, stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+    }
+
+    private async Task<CommandHandlerResult> ExecuteAsync(
         CommandEnvelope envelope,
+        IServiceProvider serviceProvider,
         CancellationToken cancellationToken
     )
     {
@@ -133,7 +223,8 @@ public sealed class QueueApplicationService(
 
         if (commandType == null)
         {
-            return QueueCommandResult.PermanentFailure($"Unknown command type '{envelope.CommandName}'.");
+            // Unknown types cannot be retried — the message will never deserialize.
+            return CommandHandlerResult.PermanentFailure($"Unknown command type '{envelope.CommandName}'.");
         }
 
         object? command;
@@ -152,79 +243,44 @@ public sealed class QueueApplicationService(
                 envelope.MessageId
             );
 
-            return QueueCommandResult.PermanentFailure("Invalid command payload.");
+            return CommandHandlerResult.PermanentFailure("Invalid command payload.");
         }
 
         if (command == null)
         {
-            return QueueCommandResult.PermanentFailure("Command payload was empty.");
+            // Empty JSON object or null literal — treat as permanent bad payload.
+            return CommandHandlerResult.PermanentFailure("Command payload was empty.");
         }
 
-        // Dispatch to the handler for the resolved command type.
-        if (commandType == typeof(RegisterUserCommand))
+        // Dispatch to the handler registered for the resolved command type.
+        var handler = serviceProvider
+            .GetServices<ICommandHandler>()
+            .FirstOrDefault(candidate => candidate.CommandType == commandType);
+
+        if (handler == null)
         {
-            return await this.ProcessRegisterUserAsync((RegisterUserCommand)command, cancellationToken);
-        }
-
-        return QueueCommandResult.PermanentFailure($"Unsupported command type '{envelope.CommandName}'.");
-    }
-
-    private async Task<QueueCommandResult> ProcessRegisterUserAsync(
-        RegisterUserCommand command,
-        CancellationToken cancellationToken
-    )
-    {
-        using var scope = scopeFactory.CreateScope();
-        var userApplicationService = scope.ServiceProvider.GetRequiredService<IUserApplicationService>();
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-        try
-        {
-            // Run registration inside a transaction boundary.
-            await unitOfWork.BeginTransactionAsync(cancellationToken);
-
-            var result = await userApplicationService.ProcessRegisterUserAsync(
-                command.ToRequest(),
-                cancellationToken
+            // Type resolved but no handler registered in this host (misconfiguration).
+            return CommandHandlerResult.PermanentFailure(
+                $"No handler registered for command type '{envelope.CommandName}'."
             );
-
-            if (!result.Succeeded)
-            {
-                // Roll back and classify the failure for retry policy.
-                await unitOfWork.RollbackAsync(cancellationToken);
-
-                return result.IsDuplicateEmail
-                    ? QueueCommandResult.PermanentFailure(result.ErrorMessage ?? "Duplicate email.")
-                    : QueueCommandResult.TransientFailure(result.ErrorMessage ?? "Registration failed.");
-            }
-
-            // Commit the registration and confirmation email work.
-            await unitOfWork.CommitAsync(cancellationToken);
-
-            return QueueCommandResult.Success();
         }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Register user command failed.");
 
-            try
-            {
-                // Best-effort rollback after an unexpected error.
-                await unitOfWork.RollbackAsync(cancellationToken);
-            }
-            catch (Exception rollbackException)
-            {
-                logger.LogWarning(rollbackException, "Rollback failed after register user error.");
-            }
-
-            return QueueCommandResult.TransientFailure(exception.Message);
-        }
+        // Run the domain-specific handler for this command type.
+        return await handler.HandleAsync(command, cancellationToken);
     }
 
     private static Type? ResolveCommandType(string commandTypeName)
     {
-        return Type.GetType(commandTypeName)
-            ?? typeof(RegisterUserCommand).Assembly.GetType(commandTypeName);
+        // Try assembly-qualified name first (what EnqueueAsync writes today).
+        var commandType = Type.GetType(commandTypeName, throwOnError: false);
+
+        if (commandType != null)
+        {
+            return commandType;
+        }
+
+        // Fall back to full name in the domain assembly (older queued messages).
+        return typeof(AssemblyMarker).Assembly.GetType(commandTypeName);
     }
 
     private async Task PublishAsync(CommandEnvelope envelope, CancellationToken cancellationToken)
@@ -350,39 +406,5 @@ public sealed class QueueApplicationService(
         return errorMessage.Length <= 2000
             ? errorMessage
             : errorMessage[..2000];
-    }
-
-    private sealed class QueueCommandResult
-    {
-        public bool Succeeded { get; init; }
-
-        public bool IsPermanentFailure { get; init; }
-
-        public string? ErrorMessage { get; init; }
-
-        public static QueueCommandResult Success()
-        {
-            return new QueueCommandResult { Succeeded = true };
-        }
-
-        public static QueueCommandResult PermanentFailure(string errorMessage)
-        {
-            return new QueueCommandResult
-            {
-                Succeeded = false,
-                IsPermanentFailure = true,
-                ErrorMessage = errorMessage,
-            };
-        }
-
-        public static QueueCommandResult TransientFailure(string errorMessage)
-        {
-            return new QueueCommandResult
-            {
-                Succeeded = false,
-                IsPermanentFailure = false,
-                ErrorMessage = errorMessage,
-            };
-        }
     }
 }

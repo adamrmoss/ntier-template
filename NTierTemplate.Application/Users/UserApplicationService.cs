@@ -1,6 +1,8 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NTierTemplate.Application.Email;
 using NTierTemplate.Application.Queue;
+using NTierTemplate.Data;
 using NTierTemplate.Data.Users;
 using NTierTemplate.Users;
 
@@ -13,7 +15,9 @@ public class UserApplicationService(
     IUserDao userDao,
     IQueueApplicationService queueApplicationService,
     IEmailClient emailClient,
-    IOptions<AppOptions> appOptions
+    IUnitOfWork unitOfWork,
+    IOptions<AppOptions> appOptions,
+    ILogger<UserApplicationService> logger
 )
     : IUserApplicationService
 {
@@ -50,45 +54,79 @@ public class UserApplicationService(
         CancellationToken cancellationToken = default
     )
     {
-        // Create the account through Identity.
-        var createResult = await this.RegisterAsync(request, cancellationToken);
-
-        if (!createResult.Succeeded || createResult.User == null)
+        try
         {
-            // Classify duplicate-email failures as permanent.
-            var isDuplicateEmail = createResult.Errors.Any(error =>
-                error.Contains("already exists", StringComparison.OrdinalIgnoreCase));
+            // Run registration inside a transaction boundary.
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            // Create the account through Identity.
+            var createResult = await this.RegisterAsync(request, cancellationToken);
+
+            if (!createResult.Succeeded || createResult.User == null)
+            {
+                // Classify duplicate-email failures as permanent.
+                var isDuplicateEmail = createResult.Errors.Any(error =>
+                    error.Contains("already exists", StringComparison.OrdinalIgnoreCase));
+
+                await unitOfWork.RollbackAsync(cancellationToken);
+
+                return new ProcessRegisterUserResult
+                {
+                    Succeeded = false,
+                    IsDuplicateEmail = isDuplicateEmail,
+                    ErrorMessage = createResult.Errors.FirstOrDefault() ?? "Registration failed.",
+                };
+            }
+
+            // Generate an email confirmation token for the new account.
+            var confirmationToken = await userDao.GenerateEmailConfirmationTokenAsync(
+                createResult.User.Id,
+                cancellationToken
+            );
+
+            if (confirmationToken == null)
+            {
+                // Roll back when Identity cannot produce a confirmation token.
+                await unitOfWork.RollbackAsync(cancellationToken);
+
+                return new ProcessRegisterUserResult
+                {
+                    Succeeded = false,
+                    ErrorMessage = "Could not generate email confirmation token.",
+                };
+            }
+
+            // Send the confirmation email to the new user.
+            await this.SendEmailConfirmationAsync(createResult.User, confirmationToken, cancellationToken);
+
+            // Commit the registration and confirmation email work.
+            await unitOfWork.CommitAsync(cancellationToken);
+
+            return new ProcessRegisterUserResult
+            {
+                Succeeded = true,
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Register user command failed.");
+
+            try
+            {
+                // Best-effort rollback after an unexpected error.
+                await unitOfWork.RollbackAsync(cancellationToken);
+            }
+            catch (Exception rollbackException)
+            {
+                logger.LogWarning(rollbackException, "Rollback failed after register user error.");
+            }
 
             return new ProcessRegisterUserResult
             {
                 Succeeded = false,
-                IsDuplicateEmail = isDuplicateEmail,
-                ErrorMessage = createResult.Errors.FirstOrDefault() ?? "Registration failed.",
+                ErrorMessage = exception.Message,
             };
         }
-
-        // Generate an email confirmation token for the new account.
-        var confirmationToken = await userDao.GenerateEmailConfirmationTokenAsync(
-            createResult.User.Id,
-            cancellationToken
-        );
-
-        if (confirmationToken == null)
-        {
-            return new ProcessRegisterUserResult
-            {
-                Succeeded = false,
-                ErrorMessage = "Could not generate email confirmation token.",
-            };
-        }
-
-        // Send the confirmation email to the new user.
-        await this.SendEmailConfirmationAsync(createResult.User, confirmationToken, cancellationToken);
-
-        return new ProcessRegisterUserResult
-        {
-            Succeeded = true,
-        };
     }
 
     /// <inheritdoc />

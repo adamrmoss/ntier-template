@@ -1,9 +1,11 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using NTierTemplate.Application;
 using NTierTemplate.Application.Email;
 using NTierTemplate.Application.Queue;
 using NTierTemplate.Application.Users;
+using NTierTemplate.Data;
 using NTierTemplate.Data.Users;
 using NTierTemplate.Users;
 
@@ -15,6 +17,7 @@ public class UserApplicationServiceTests
     private Mock<IUserDao> userDao = null!;
     private Mock<IQueueApplicationService> queueApplicationService = null!;
     private Mock<IEmailClient> emailClient = null!;
+    private Mock<IUnitOfWork> unitOfWork = null!;
     private UserApplicationService service = null!;
 
     [SetUp]
@@ -23,11 +26,14 @@ public class UserApplicationServiceTests
         this.userDao = new Mock<IUserDao>();
         this.queueApplicationService = new Mock<IQueueApplicationService>();
         this.emailClient = new Mock<IEmailClient>();
+        this.unitOfWork = new Mock<IUnitOfWork>();
         this.service = new UserApplicationService(
             this.userDao.Object,
             this.queueApplicationService.Object,
             this.emailClient.Object,
-            Options.Create(new AppOptions { FrontendBaseUrl = "http://localhost:8240" })
+            this.unitOfWork.Object,
+            Options.Create(new AppOptions { FrontendBaseUrl = "http://localhost:8240" }),
+            NullLogger<UserApplicationService>.Instance
         );
     }
 
@@ -148,6 +154,10 @@ public class UserApplicationServiceTests
 
         result.Succeeded.Should().BeFalse();
         result.IsDuplicateEmail.Should().BeTrue();
+        this.unitOfWork.Verify(
+            work => work.RollbackAsync(It.IsAny<CancellationToken>()),
+            Times.Once
+        );
         this.emailClient.Verify(
             client => client.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()),
             Times.Never

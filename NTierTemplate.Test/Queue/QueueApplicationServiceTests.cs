@@ -31,12 +31,21 @@ public class QueueApplicationServiceTests
         this.serviceProvider
             .Setup(p => p.GetService(typeof(IFailedCommandDao)))
             .Returns(this.failedCommandDao.Object);
+        this.serviceProvider
+            .Setup(p => p.GetService(typeof(IEnumerable<ICommandHandler>)))
+            .Returns(Array.Empty<ICommandHandler>());
 
         this.service = new QueueApplicationService(
             this.scopeFactory.Object,
             Options.Create(new RabbitMqOptions()),
             NullLogger<QueueApplicationService>.Instance
         );
+    }
+
+    [TearDown]
+    public async Task TearDown()
+    {
+        await this.service.DisposeAsync();
     }
 
     [Test]

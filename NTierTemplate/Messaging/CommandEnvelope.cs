@@ -8,7 +8,7 @@ public class CommandEnvelope
     public Guid MessageId { get; set; } = Guid.NewGuid();
 
     /// <summary>
-    /// CLR full type name of the command payload (for example <c>NTierTemplate.Users.RegisterUserCommand</c>).
+    /// CLR assembly-qualified type name of the command payload, with full-name fallback for older messages.
     /// </summary>
     public string CommandName { get; set; } = string.Empty;
 

@@ -28,12 +28,12 @@ public interface IUserApplicationService
     );
 
     /// <summary>
-    /// Register a user and send a confirmation email when registration succeeds.
+    /// Register a user and send a confirmation email inside a transaction boundary.
     /// Intended for queue command handlers.
     /// </summary>
     /// <param name="request">Registration payload.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Processing outcome.</returns>
+    /// <returns>Processing outcome, including whether the failure was caused by a duplicate email.</returns>
     Task<ProcessRegisterUserResult> ProcessRegisterUserAsync(
         RegisterUserRequest request,
         CancellationToken cancellationToken = default

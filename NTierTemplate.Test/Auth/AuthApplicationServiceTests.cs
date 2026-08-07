@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Moq;
 using NTierTemplate.Application.Auth;
+using NTierTemplate.Application.Users;
 using NTierTemplate.Data.Users;
 using NTierTemplate.Users;
 
@@ -36,6 +37,8 @@ public class AuthApplicationServiceTests
             Email = "user@example.com",
             FirstName = "Test",
             LastName = "User",
+            DisplayName = "Test User",
+            Roles = ["User"],
         };
 
         this.userDao

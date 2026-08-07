@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using NTierTemplate.Application.Queue;
 
 namespace NTierTemplate.Application.Ioc;
 
@@ -10,7 +9,7 @@ namespace NTierTemplate.Application.Ioc;
 public static class QueueRegistrar
 {
     /// <summary>
-    /// Register RabbitMQ options and <see cref="IQueueApplicationService"/>.
+    /// Register RabbitMQ options and <see cref="Queue.IQueueApplicationService"/>.
     /// </summary>
     /// <param name="serviceCollection">The service collection to register queue services with.</param>
     /// <param name="configuration">Host configuration.</param>
@@ -19,7 +18,9 @@ public static class QueueRegistrar
         IConfiguration configuration
     )
     {
-        serviceCollection.Configure<RabbitMqOptions>(configuration.GetSection(RabbitMqOptions.SectionName));
-        serviceCollection.AddSingleton<IQueueApplicationService, QueueApplicationService>();
+        serviceCollection.Configure<Queue.RabbitMqOptions>(configuration.GetSection(Queue.RabbitMqOptions.SectionName));
+        serviceCollection.AddSingleton<Queue.QueueApplicationService>();
+        serviceCollection.AddSingleton<Queue.IQueueApplicationService>(serviceProvider =>
+            serviceProvider.GetRequiredService<Queue.QueueApplicationService>());
     }
 }

@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json.schemastore.org/launchsettings.json",
+    "profiles": {
+        "help": {
+            "commandName": "Project",
+            "commandLineArgs": "--help",
+            "workingDirectory": ".",
+            "dotnetRunMessages": false
+        },
+        "user": {
+            "commandName": "Project",
+            "commandLineArgs": "user --help",
+            "workingDirectory": ".",
+            "dotnetRunMessages": false
+        },
+        "user-create-admin": {
+            "commandName": "Project",
+            "commandLineArgs": "user create-admin --email admin@example.com --password YourCurrentPassword --admin-email newadmin@example.com --admin-password NewAdminPassword1",
+            "workingDirectory": ".",
+            "dotnetRunMessages": false
+        }
+    }
+}

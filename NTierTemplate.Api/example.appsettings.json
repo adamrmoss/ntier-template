@@ -1,0 +1,30 @@
+{
+    "ConnectionStrings": {
+        "DefaultConnection": "Server=localhost;Port=3306;Database=ntier-template;User=ntier;Password=CHANGE_ME;"
+    },
+    "App": {
+        "FrontendBaseUrl": "http://localhost:8240"
+    },
+    "Jwt": {
+        "Issuer": "https://localhost:7240",
+        "Audience": "http://localhost:8240",
+        "SigningKey": "CHANGE_ME_TO_A_LONG_RANDOM_SECRET",
+        "AccessTokenMinutes": 15,
+        "RefreshTokenDays": 14
+    },
+    "Smtp": {
+        "Host": "smtp.office365.com",
+        "Port": 587,
+        "Username": "",
+        "Password": "",
+        "FromAddress": "",
+        "FromDisplayName": "NTierTemplate"
+    },
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+            "Microsoft.AspNetCore": "Warning"
+        }
+    },
+    "AllowedHosts": "*"
+}

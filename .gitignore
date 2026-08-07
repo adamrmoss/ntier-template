@@ -39,6 +39,11 @@ ScaffoldingReadMe.txt
 # dotenv environment variables file
 .env
 
+# Local database credentials
+NTierTemplate.Data/dbsettings.json
+NTierTemplate.Cli/clisettings.json
+NTierTemplate.Queue/queuesettings.json
+
 # Others
 ~$*
 *~
@@ -55,3 +60,9 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Angular
+ntier-template-web/node_modules/
+ntier-template-web/dist/
+ntier-template-web/.angular/
+ntier-template-web/out-tsc/

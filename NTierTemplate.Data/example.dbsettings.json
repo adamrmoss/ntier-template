@@ -1,0 +1,5 @@
+{
+    "ConnectionStrings": {
+        "DefaultConnection": "Server=localhost;Port=3306;Database=ntier-template;User=ntier;Password=CHANGE_ME;"
+    }
+}

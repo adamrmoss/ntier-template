@@ -1,0 +1,16 @@
+{
+    "ConnectionStrings": {
+        "DefaultConnection": "Server=localhost;Port=3306;Database=ntier-template;User=ntier;Password=CHANGE_ME;"
+    },
+    "App": {
+        "FrontendBaseUrl": "http://localhost:8240"
+    },
+    "Smtp": {
+        "Host": "smtp.office365.com",
+        "Port": 587,
+        "Username": "",
+        "Password": "",
+        "FromAddress": "",
+        "FromDisplayName": "NTierTemplate"
+    }
+}

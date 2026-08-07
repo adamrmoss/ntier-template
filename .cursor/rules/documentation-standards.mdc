@@ -1,0 +1,36 @@
+---
+description: Comments and documentation for types and methods
+globs: "**/*.cs,**/*.ts,**/*.tsx"
+alwaysApply: false
+---
+
+# Documentation Standards
+
+Comments document the codebase for future readers. They should be concise, action-oriented, and on their own line (never inline).
+
+## General Principles
+
+- Comments document the codebase, not the developer (use chat for that)
+- Comments always go on their own line, never inline
+- Within method bodies, add brief `//` section headers before each logical block
+- Method descriptions should be action-oriented, starting with verbs (e.g. "Verify the signature", "Compute the hash", "Read the request body")
+- Every distinct logical operation (validation, computation, I/O, branching) should have a brief comment preceding it
+
+## C# (XML Documentation)
+
+For `*.cs` files:
+
+- Use `/// <summary>` for types (classes, interfaces), public methods, and public properties
+- Use `/// <param name="...">` for each method parameter
+- Use `/// <returns>` for method return values
+- Keep summary text concise and action-oriented
+
+## TypeScript (TSDoc)
+
+For `*.ts` and `*.tsx` files, use [TSDoc](https://tsdoc.org):
+
+- Use `/** ... */` doc comments for types, classes, and public methods
+- The text before the first block tag is the summary; keep it brief and action-oriented
+- Use `@param paramName - description` for each method parameter
+- Use `@returns description` for method return values (omit for `void`)
+- Optional: `@remarks` for longer documentation; `@example` for usage examples

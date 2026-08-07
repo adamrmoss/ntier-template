@@ -1,0 +1,36 @@
+---
+description: RabbitMQ worker host and command processing
+globs: "NTierTemplate.Queue/**/*.cs"
+alwaysApply: false
+---
+
+# Queue Layer
+
+`NTierTemplate.Queue/` is a **worker host** that consumes RabbitMQ messages and runs Application use cases.
+
+## Responsibilities
+
+- Bootstrap IoC using Application's common wiring, plus Queue-specific services (RabbitMQ consumers)
+- Host message consumers (RabbitMQ)
+- Deserialize incoming command messages (contracts from Domain)
+- Invoke Application service interfaces
+- Handle retries, dead-letter, and worker-specific logging as needed
+
+## CQRS Flow
+
+1. Api or Cli receives a command request
+2. Entry point enqueues a message to RabbitMQ (preferred for commands with side effects)
+3. Queue worker consumes the message and calls Application services to execute the use case
+
+Queries are **not** routed through the queue — Api serves them synchronously via Application services.
+
+## Layer Boundaries
+
+- Queue project-references **Application** and **Domain** only — not **Data**
+- Do not reference EF entities, DbContext, DAO implementations, or Identity managers from Queue code
+- RabbitMQ client wiring and consumer registration live in `NTierTemplate.Queue/`
+
+## Related Rules
+
+- `application-layer.mdc` — use cases and common IoC wiring invoked by workers
+- `general-guidelines.mdc` — layer dependency table

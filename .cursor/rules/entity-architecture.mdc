@@ -1,0 +1,34 @@
+---
+description: Domain vs EF entity split and layer boundaries
+globs: "**/*.cs"
+alwaysApply: false
+---
+
+# Entity Layer Architecture
+
+Two entity types, in separate projects:
+
+| Layer | Project | Purpose |
+|-------|---------|---------|
+| Domain entities | `NTierTemplate/` | Shared types, message contracts, entities with focused behavior |
+| EF entities | `NTierTemplate.Data/` | Persistence models mapping to tables/columns; used only in DAOs and DbContext |
+
+## Domain Project
+
+Domain holds **shared types and message contracts** — not use-case orchestration. Behavior belongs on domain entities only when it is small and fits comfortably there. Everything else lives in Application services.
+
+## Rules
+
+- **Application services** (`UserApplicationService`, etc.) live in `NTierTemplate.Application/`; they use domain types and DAO interfaces from `NTierTemplate.Data/`
+- When investigating database issues or schema: look at EF entities in `NTierTemplate.Data/`, not domain entities
+- When writing LINQ queries or EF Core code: reference EF entities in `NTierTemplate.Data/`
+- DAOs translate between EF entities and domain entities at CRUD and query level
+- ASP.NET Core Identity persistence types (`ApplicationUser`, `ApplicationRole`) live in `NTierTemplate.Data/`; map to domain `User` in DAOs
+- Identity managers (`UserManager`, `RoleManager`) are used inside DAO implementations in `NTierTemplate.Data/`, not in Application services, Api controllers, Cli handlers, or Queue consumers
+- Api, Cli, and Queue resolve Application service interfaces (`IUserApplicationService`, etc.), not DAO interfaces, Identity types, or `NTierTemplateDbContext`
+
+## Related Rules
+
+- `application-layer.mdc` — use-case orchestration, IoC wiring, CQRS
+- `dao-pattern.mdc` — DAO placement and responsibilities
+- `entity-framework.mdc` — migrations and DbContext

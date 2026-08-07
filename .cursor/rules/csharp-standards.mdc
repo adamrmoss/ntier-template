@@ -1,0 +1,22 @@
+---
+description: C# coding standards
+globs: "**/*.cs"
+alwaysApply: false
+---
+
+# C# Coding Standards
+
+- Prefer explicit `public`, `protected`, or `private` access modifiers on types and members
+- Avoid `internal`, `protected internal`, and default (unspecified) access
+- Always use explicit `this.` to reference instance members (methods and properties)
+- **Primary constructor parameters** are an exception: they are not promoted to instance members. Their scope is closure-like — captured from the constructor and in scope for the entire class body. Reference them by parameter name only (e.g. `userDao`), never with `this.` (e.g. `this.userDao` is wrong and can cause build errors)
+- Do **not** assign primary constructor parameters to private fields when passing them through unchanged (e.g. `private readonly IUserDao userDao = userDao;` is redundant). Only capture to a field when transforming the value (e.g. `private readonly JwtOptions options = jwtOptions.Value;`)
+- Always use braces `{ }` for all control structures, even single-line blocks
+- Add line breaks between logical groups of code for readability
+- Keep each logical operation visually separate from others
+- Never use the `dynamic` type — always use strongly-typed variables, explicit types, or anonymous types
+- Always include a space after type cast operators (e.g. `(float) value`, not `(float)value`)
+- Use LINQ method syntax (`.Where()`, `.Join()`, `.Select()`, etc.) only; do not use LINQ query syntax (`from`/`join`/`where`/`select`)
+- When a method signature, method call, primary constructor parameter list, or other parenthesized argument list spans multiple lines, place the closing `)` on its own line
+- For LINQ-to-EF constraints, see `linq-to-ef.mdc`
+- For documentation comments, see `documentation-standards.mdc`

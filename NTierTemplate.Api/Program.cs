@@ -22,9 +22,14 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        // Configure host-specific services and shared application wiring.
         builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            .AddJsonOptions(jsonOptions =>
+            {
+                SerializerRegistrar.ConfigureCamelCase(jsonOptions.JsonSerializerOptions);
+            });
 
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
@@ -34,6 +39,7 @@ public class Program
         var appOptions = builder.Configuration.GetSection(AppOptions.SectionName).Get<AppOptions>()
             ?? new AppOptions();
 
+        // Allow the Angular dev server and configured production frontend origin.
         builder.Services.AddCors(options =>
         {
             options.AddPolicy(
@@ -56,6 +62,7 @@ public class Program
         var jwtSettings = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
             ?? new JwtOptions();
 
+        // Validate JWT access tokens on authenticated requests.
         builder.Services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(jwtOptions =>
@@ -77,8 +84,10 @@ public class Program
 
         var app = builder.Build();
 
+        // Ensure Identity roles exist before serving traffic.
         await NTierTemplateStartupExtensions.EnsureDefaultRolesAsync(app.Services);
 
+        // Configure the HTTP pipeline.
         app.UseForwardedHeaders();
         app.UseCors("AllowFrontend");
         app.UseAuthentication();

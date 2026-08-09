@@ -1,0 +1,10 @@
+<section class="auth-page">
+    @if (errorMessage)
+    {
+        <p class="auth-page__error" role="alert">{{ errorMessage }}</p>
+    }
+    @else
+    {
+        <p>{{ statusMessage }}</p>
+    }
+</section>

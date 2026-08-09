@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NTierTemplate.Application.Auth;
 using NTierTemplate.Application.Ioc;
 using NTierTemplate.Application.Users;
 using NTierTemplate.Users;
@@ -61,9 +62,11 @@ public abstract class CliCommand
         CancellationToken cancellationToken = default
     )
     {
+        // Bootstrap a host and scoped service provider.
         using var host = CreateHost();
         using var scope = host.Services.CreateScope();
 
+        // Authenticate the caller before running command logic.
         await this.AuthenticateAsync(scope.ServiceProvider, email, password, cancellationToken);
 
         await executeAsync(scope.ServiceProvider);
@@ -83,9 +86,11 @@ public abstract class CliCommand
         CancellationToken cancellationToken = default
     )
     {
+        // Bootstrap a host and scoped service provider.
         using var host = CreateHost();
         using var scope = host.Services.CreateScope();
 
+        // Require an authenticated administrator before running command logic.
         await this.RequireAdminAsync(scope.ServiceProvider, email, password, cancellationToken);
 
         await executeAsync(scope.ServiceProvider);
@@ -100,6 +105,7 @@ public abstract class CliCommand
         return Host.CreateDefaultBuilder()
             .ConfigureAppConfiguration((_, configurationBuilder) =>
             {
+                // Load CLI-specific settings and environment overrides.
                 configurationBuilder
                     .SetBasePath(AppContext.BaseDirectory)
                     .AddJsonFile("clisettings.json", optional: true)
@@ -107,6 +113,7 @@ public abstract class CliCommand
             })
             .ConfigureServices((context, services) =>
             {
+                // Register CLI principal scoping and shared application services.
                 services.AddScoped<IPrincipalContainer, CliPrincipalContainer>();
                 services.AddNTierTemplateApplication(context.Configuration);
             })
@@ -128,9 +135,10 @@ public abstract class CliCommand
         CancellationToken cancellationToken
     )
     {
-        var userApplicationService = serviceProvider.GetRequiredService<IUserApplicationService>();
+        var authApplicationService = serviceProvider.GetRequiredService<IAuthApplicationService>();
 
-        var user = await userApplicationService.ValidatePasswordAsync(email, password, cancellationToken);
+        // Validate email and password against Identity.
+        var user = await authApplicationService.ValidatePasswordAsync(email, password, cancellationToken);
 
         if (user is null)
         {
@@ -155,8 +163,10 @@ public abstract class CliCommand
         CancellationToken cancellationToken
     )
     {
+        // Authenticate the caller first.
         var user = await this.AuthenticateAsync(serviceProvider, email, password, cancellationToken);
 
+        // Require administrator privileges for the command.
         if (!user.IsAdmin)
         {
             throw new InvalidOperationException("Administrator privileges are required.");

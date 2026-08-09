@@ -1,0 +1,15 @@
+[Unit]
+Description=NTierTemplate API
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/ntier-template/api
+ExecStart=/opt/ntier-template/api/NTierTemplate.Api
+Restart=always
+RestartSec=10
+User=amoss
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5271
+
+[Install]
+WantedBy=multi-user.target

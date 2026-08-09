@@ -1,0 +1,28 @@
+.home
+{
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    min-height: calc(100vh - 64px);
+    padding: 24px;
+}
+
+.home__card
+{
+    background: linear-gradient(145deg, #f4f5f7 0%, #e4e7eb 100%);
+    max-width: 560px;
+    width: 100%;
+}
+
+.home__footer
+{
+    color: #5c626aff;
+    font: var(--mat-sys-body-small);
+    padding: 0 16px 16px;
+}
+
+.home__message
+{
+    font: var(--mat-sys-body-large);
+    margin: 0;
+}

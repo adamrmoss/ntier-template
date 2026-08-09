@@ -1,5 +1,5 @@
 using System.Text.Json;
-using NTierTemplate.Application.Users;
+using NTierTemplate.Application.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -13,7 +13,7 @@ namespace NTierTemplate.Api.Users;
 [Route("user")]
 [Authorize]
 public class UserController(
-    IUserApplicationService userApplicationService,
+    IAuthApplicationService authApplicationService,
     IOptionsMonitor<JsonSerializerOptions> jsonOptionsMonitor
 )
     : ApiControllerBase(jsonOptionsMonitor)
@@ -26,7 +26,7 @@ public class UserController(
     [HttpGet("current")]
     public async Task<IActionResult> GetCurrent(CancellationToken cancellationToken)
     {
-        var user = await userApplicationService.GetCurrentUserAsync(cancellationToken);
+        var user = await authApplicationService.GetCurrentUserAsync(cancellationToken);
 
         if (user == null)
         {

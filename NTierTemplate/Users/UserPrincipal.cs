@@ -15,17 +15,20 @@ public static class UserPrincipal
     /// <returns>Authenticated principal.</returns>
     public static ClaimsPrincipal Create(User user, string authenticationType)
     {
+        // Build identity claims for the user.
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email),
         };
 
+        // Add one role claim per assigned role.
         foreach (var role in user.Roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
+        // Wrap the claims in an authenticated identity.
         var identity = new ClaimsIdentity(claims, authenticationType);
 
         return new ClaimsPrincipal(identity);

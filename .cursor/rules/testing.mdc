@@ -6,33 +6,39 @@ alwaysApply: false
 
 # Unit Testing
 
-We use unit tests **sparingly**. All non-configuration logic belongs in **Domain** and **Application** — that is what we test.
+Tests cover **non-configuration logic in every backend tier**. Configuration and wiring stay out of scope.
 
 ## Test Project
 
-- `NTierTemplate.Test/` references **Domain**, **Application**, and **Data** (Data is referenced only for DAO interface types used in mocks)
-- Do not reference Api, Cli, Queue, or Web from the test project
+- `NTierTemplate.Test/` references **Domain**, **Application**, **Data**, **Api**, **Cli**, and **Queue**
+- Do not reference `ntier-template-web/`
+- Organize tests by **layer folder** (matching project name), then **domain folder** — e.g. `NTierTemplate.Test/NTierTemplate.Application/Users/UserApplicationServiceTests.cs`
+- Shared fixtures live in `NTierTemplate.Test/Support/`
 
 ## What to Test
 
-- Domain entity behavior and value-object logic
-- Application service use-case orchestration (mock DAO interfaces from `NTierTemplate.Data/`)
+- Domain entity behavior, message mapping, and principal helpers
+- Application service orchestration and queue command processing
+- Data DAO algorithms and `UnitOfWork` transaction boundaries (in-memory EF + Identity)
+- Api JWT/token and HTTP adapter branching (mock application services)
+- Cli and Queue domain handlers and scoped host adapters where they contain logic
 
 ## What Not to Test
 
-- Configuration and wiring: IoC registration, `Program.cs`, host bootstrap, `appsettings`, EF configuration, DAO implementations, migrations
-- Entry-point hosts (Api, Cli, Queue) — thin hosts with no business logic
-- Data layer persistence — exercised through integration/manual verification, not unit tests here
+- Configuration and wiring: IoC registration, `Program.cs`, host bootstrap, `appsettings`, EF entity `Configure()` only, migrations
+- Pure DTOs/property bags with no branching
+- Third-party infrastructure adapters without a seam (for example raw SMTP send) unless an integration test is explicitly added
 
 ## Conventions
 
-- Mock DAO interfaces (`IUserDao`, etc.) when testing Application services — use **Moq**; never mock EF or Identity types
-- Use **FluentAssertions** for expectations (`value.Should().Be(...)`, `collection.Should().Contain(...)`, etc.)
-- Add tests only when they protect meaningful behavior; do not test trivial getters or framework boilerplate
+- Mock application and DAO **interfaces** in Application and Api tests — use **Moq**
+- Use **in-memory EF** for Data-layer DAO and `UnitOfWork` tests
+- Use **FluentAssertions** for expectations
+- When a test namespace nests under `NTierTemplate.Test.NTierTemplate.*`, qualify domain types with `global::NTierTemplate.Users.User` (and similar) to avoid namespace shadowing
 - Keep test types and methods domain-named, matching the code under test
 
 ## Related Rules
 
 - `general-guidelines.mdc` — solution structure and layer dependencies
 - `application-layer.mdc` — use-case logic under test
-- `dao-pattern.mdc` — DAO interfaces are the persistence boundary for mocks
+- `dao-pattern.mdc` — DAO interfaces and implementations

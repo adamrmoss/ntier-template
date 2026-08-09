@@ -20,6 +20,14 @@
         "FromAddress": "",
         "FromDisplayName": "NTierTemplate"
     },
+    "RabbitMq": {
+        "Host": "localhost",
+        "Port": 5672,
+        "UserName": "ntier",
+        "Password": "CHANGE_ME",
+        "VirtualHost": "/",
+        "QueueName": "ntier-template"
+    },
     "Logging": {
         "LogLevel": {
             "Default": "Information",

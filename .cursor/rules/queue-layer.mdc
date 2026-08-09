@@ -11,10 +11,10 @@ alwaysApply: false
 ## Responsibilities
 
 - Bootstrap IoC using Application's common wiring, plus Queue-specific services (RabbitMQ consumers)
-- Host message consumers (RabbitMQ)
+- Host message consumers (RabbitMQ) — thin: receive, deserialize, delegate to Application
 - Deserialize incoming command messages (contracts from Domain)
-- Invoke Application service interfaces
-- Handle retries, dead-letter, and worker-specific logging as needed
+- Call **`IQueueApplicationService`** (or agreed single Application entry) to process commands and retries
+- Worker-specific logging only; retry/dead-letter logic belongs in Application + Data, not a parallel service layer in Queue
 
 ## CQRS Flow
 

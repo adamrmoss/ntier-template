@@ -1,0 +1,55 @@
+@if (completed)
+{
+    <h2 mat-dialog-title>Create account</h2>
+
+    <mat-dialog-content>
+        <p class="auth-dialog__success">{{ successMessage }}</p>
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+        <button mat-flat-button type="button" (click)="onDone()">Close</button>
+    </mat-dialog-actions>
+}
+@else
+{
+    <h2 mat-dialog-title>Create account</h2>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <mat-dialog-content>
+            @if (errorMessage)
+            {
+                <p class="auth-dialog__error" role="alert">{{ errorMessage }}</p>
+            }
+
+            @if (passwordMismatch)
+            {
+                <p class="auth-dialog__error" role="alert">Passwords do not match.</p>
+            }
+
+            <mat-form-field appearance="outline" class="auth-dialog__field">
+                <mat-label>Email</mat-label>
+                <input matInput formControlName="email" type="email" autocomplete="email" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="auth-dialog__field">
+                <mat-label>Password</mat-label>
+                <input matInput formControlName="password" type="password" autocomplete="new-password" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="auth-dialog__field">
+                <mat-label>Confirm password</mat-label>
+                <input matInput formControlName="confirmPassword" type="password" autocomplete="new-password" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="auth-dialog__field">
+                <mat-label>Display name (optional)</mat-label>
+                <input matInput formControlName="displayName" type="text" autocomplete="name" />
+            </mat-form-field>
+        </mat-dialog-content>
+
+        <mat-dialog-actions align="end">
+            <button mat-button type="button" [disabled]="submitting" (click)="onCancel()">Cancel</button>
+            <button mat-flat-button type="submit" [disabled]="submitting">Create account</button>
+        </mat-dialog-actions>
+    </form>
+}

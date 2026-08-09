@@ -25,6 +25,7 @@ public sealed class UserCreateAdminCommand : CliCommand
     /// <inheritdoc />
     public override Command Build()
     {
+        // Build the user administration command tree.
         var command = new Command("user", "User administration tasks.");
         var createAdminCommand = new Command("create-admin", "Create an administrator account.");
 
@@ -36,6 +37,7 @@ public sealed class UserCreateAdminCommand : CliCommand
         {
             try
             {
+                // Create the administrator account as an authenticated admin.
                 await this.CreateAdminUserAsync(
                     parseResult.GetValue(this.EmailOption)!,
                     parseResult.GetValue(this.PasswordOption)!,
@@ -47,6 +49,7 @@ public sealed class UserCreateAdminCommand : CliCommand
             }
             catch (InvalidOperationException exception)
             {
+                // Surface validation and authorization failures to stderr.
                 Console.Error.WriteLine(exception.Message);
                 return 1;
             }
@@ -73,6 +76,7 @@ public sealed class UserCreateAdminCommand : CliCommand
     {
         await this.ExecuteAsAdminAsync(email, password, async serviceProvider =>
         {
+            // Create the administrator account through the application service.
             var userApplicationService = serviceProvider.GetRequiredService<IUserApplicationService>();
             var result = await userApplicationService.CreateAdminAsync(adminEmail, adminPassword);
 

@@ -3,7 +3,10 @@ using NTierTemplate.Users;
 namespace NTierTemplate.Application.Users;
 
 /// <summary>
-/// Application use cases for account users.
+/// User account maintenance, registration, and transactional email: account creation,
+/// profile lookups, email confirmation and password reset flows, and queue-backed registration.
+/// Sign-in, session, refresh tokens, and current-user resolution belong on
+/// <see cref="Auth.IAuthApplicationService"/>.
 /// </summary>
 public interface IUserApplicationService
 {
@@ -12,6 +15,29 @@ public interface IUserApplicationService
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task EnsureDefaultRolesExistAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Enqueue a register-user command for asynchronous processing.
+    /// </summary>
+    /// <param name="request">Registration payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The queued message identifier.</returns>
+    Task<Guid> EnqueueRegisterUserAsync(
+        RegisterUserRequest request,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Register a user and send a confirmation email inside a transaction boundary.
+    /// Intended for queue command handlers.
+    /// </summary>
+    /// <param name="request">Registration payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Processing outcome, including whether the failure was caused by a duplicate email.</returns>
+    Task<ProcessRegisterUserResult> ProcessRegisterUserAsync(
+        RegisterUserRequest request,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>
     /// Register a new standard user account.
@@ -54,53 +80,18 @@ public interface IUserApplicationService
     Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieve the authenticated user for the current scope, when one is available.
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The current user, otherwise null.</returns>
-    Task<User?> GetCurrentUserAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Validate an email and password and return the matching user when credentials are valid.
-    /// </summary>
-    /// <param name="email">The email address.</param>
-    /// <param name="password">The password.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The user when credentials are valid, otherwise null.</returns>
-    Task<User?> ValidatePasswordAsync(
-        string email,
-        string password,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>
-    /// Check whether an email and password match without requiring email confirmation.
-    /// </summary>
-    /// <param name="email">The email address.</param>
-    /// <param name="password">The password.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True when credentials match.</returns>
-    Task<bool> CheckPasswordAsync(
-        string email,
-        string password,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>
-    /// Determine whether the account for an email address has a confirmed email.
+    /// Resend a confirmation email when an unconfirmed account exists for the address.
     /// </summary>
     /// <param name="email">The email address.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True when the account exists and email is confirmed.</returns>
-    Task<bool> IsEmailConfirmedAsync(string email, CancellationToken cancellationToken = default);
+    Task ResendConfirmationEmailAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Generate an email confirmation token for a user.
+    /// Send a password reset email when an account exists for the address.
     /// </summary>
-    /// <param name="userId">The user ID.</param>
+    /// <param name="email">The email address.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The token when the user exists; otherwise null.</returns>
-    Task<string?> GenerateEmailConfirmationTokenAsync(int userId, CancellationToken cancellationToken = default);
+    Task SendPasswordResetEmailAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Confirm a user's email address with an Identity confirmation token.
@@ -116,14 +107,6 @@ public interface IUserApplicationService
     );
 
     /// <summary>
-    /// Generate a password reset token for an email address.
-    /// </summary>
-    /// <param name="email">The email address.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The token when the account exists; otherwise null.</returns>
-    Task<string?> GeneratePasswordResetTokenAsync(string email, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Reset a user's password with an Identity reset token.
     /// </summary>
     /// <param name="email">The email address.</param>
@@ -137,32 +120,4 @@ public interface IUserApplicationService
         string newPassword,
         CancellationToken cancellationToken = default
     );
-
-    /// <summary>
-    /// Issue a new refresh token for a signed-in user.
-    /// </summary>
-    /// <param name="userId">The user ID.</param>
-    /// <param name="refreshTokenDays">Days until the refresh token expires.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The raw refresh token.</returns>
-    Task<string> IssueRefreshTokenAsync(
-        int userId,
-        int refreshTokenDays,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>
-    /// Validate and revoke a refresh token, returning the associated user ID when valid.
-    /// </summary>
-    /// <param name="rawToken">The raw refresh token.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The user ID when valid; otherwise null.</returns>
-    Task<int?> RedeemRefreshTokenAsync(string rawToken, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Revoke a refresh token when it exists and has not already been revoked.
-    /// </summary>
-    /// <param name="rawToken">The raw refresh token.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    Task RevokeRefreshTokenAsync(string rawToken, CancellationToken cancellationToken = default);
 }

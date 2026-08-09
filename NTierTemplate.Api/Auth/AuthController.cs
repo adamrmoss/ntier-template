@@ -31,7 +31,16 @@ public class AuthController(
     [AllowAnonymous]
     public async Task<IActionResult> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
-        var result = await authApplicationService.RegisterAndSendConfirmationAsync(
+        // Reject registration when the email is already taken.
+        var existingUser = await userApplicationService.GetByEmailAsync(request.Email, cancellationToken);
+
+        if (existingUser != null)
+        {
+            return this.Conflict(new { message = "An account with this email already exists." });
+        }
+
+        // Enqueue asynchronous user registration.
+        var messageId = await userApplicationService.EnqueueRegisterUserAsync(
             new RegisterUserRequest
             {
                 Email = request.Email,
@@ -43,32 +52,10 @@ public class AuthController(
             cancellationToken
         );
 
-        if (!result.CreateResult.Succeeded)
+        return this.Accepted(new
         {
-            if (result.CreateResult.Errors.Any(error =>
-                    error.Contains("already exists", StringComparison.OrdinalIgnoreCase)))
-            {
-                return this.Conflict(new { message = result.CreateResult.Errors[0] });
-            }
-
-            return this.BadRequest(new
-            {
-                message = "Registration failed.",
-                errors = result.CreateResult.Errors,
-            });
-        }
-
-        if (!result.ConfirmationEmailSent)
-        {
-            return this.StatusCode(
-                StatusCodes.Status500InternalServerError,
-                new { message = "Registration succeeded but confirmation email could not be sent." }
-            );
-        }
-
-        return this.OkJson(new MessageResponse
-        {
-            Message = "Check your email to confirm your account before signing in.",
+            message = "Registration accepted. Check your email to confirm your account before signing in.",
+            messageId,
         });
     }
 
@@ -82,7 +69,8 @@ public class AuthController(
     [AllowAnonymous]
     public async Task<IActionResult> Login(LoginRequest request, CancellationToken cancellationToken)
     {
-        var user = await userApplicationService.ValidatePasswordAsync(
+        // Validate email, password, and confirmation status.
+        var user = await authApplicationService.ValidatePasswordAsync(
             request.Email,
             request.Password,
             cancellationToken
@@ -90,12 +78,13 @@ public class AuthController(
 
         if (user == null)
         {
-            var passwordMatches = await userApplicationService.CheckPasswordAsync(
+            // Distinguish unconfirmed email from invalid credentials.
+            var passwordMatches = await authApplicationService.CheckPasswordAsync(
                 request.Email,
                 request.Password,
                 cancellationToken
             );
-            var emailConfirmed = await userApplicationService.IsEmailConfirmedAsync(
+            var emailConfirmed = await authApplicationService.IsEmailConfirmedAsync(
                 request.Email,
                 cancellationToken
             );
@@ -108,6 +97,7 @@ public class AuthController(
             return this.Unauthorized(new { message = "Invalid email or password." });
         }
 
+        // Issue access and refresh tokens for the authenticated user.
         var tokens = await tokenService.CreateTokenPairAsync(user, cancellationToken);
 
         return this.OkJson(tokens);
@@ -123,6 +113,7 @@ public class AuthController(
     [AllowAnonymous]
     public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request, CancellationToken cancellationToken)
     {
+        // Confirm the email address with Identity.
         var result = await userApplicationService.ConfirmEmailAsync(
             request.UserId,
             request.Token,
@@ -138,6 +129,7 @@ public class AuthController(
             });
         }
 
+        // Sign the user in after successful confirmation.
         var tokens = await tokenService.CreateTokenPairAsync(result.User, cancellationToken);
 
         return this.OkJson(tokens);
@@ -156,7 +148,7 @@ public class AuthController(
         CancellationToken cancellationToken
     )
     {
-        await authApplicationService.ResendConfirmationEmailAsync(request.Email, cancellationToken);
+        await userApplicationService.ResendConfirmationEmailAsync(request.Email, cancellationToken);
 
         return this.OkJson(new MessageResponse
         {
@@ -177,7 +169,7 @@ public class AuthController(
         CancellationToken cancellationToken
     )
     {
-        await authApplicationService.SendPasswordResetEmailAsync(request.Email, cancellationToken);
+        await userApplicationService.SendPasswordResetEmailAsync(request.Email, cancellationToken);
 
         return this.OkJson(new MessageResponse
         {
@@ -195,6 +187,7 @@ public class AuthController(
     [AllowAnonymous]
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest request, CancellationToken cancellationToken)
     {
+        // Reset the password with the supplied token.
         var result = await userApplicationService.ResetPasswordAsync(
             request.Email,
             request.Token,
@@ -211,6 +204,7 @@ public class AuthController(
             });
         }
 
+        // Sign the user in after a successful reset.
         var tokens = await tokenService.CreateTokenPairAsync(result.User, cancellationToken);
 
         return this.OkJson(tokens);
@@ -226,6 +220,7 @@ public class AuthController(
     [AllowAnonymous]
     public async Task<IActionResult> Refresh(RefreshRequest request, CancellationToken cancellationToken)
     {
+        // Rotate the refresh token and issue a new access token.
         var tokens = await tokenService.RefreshAsync(request.RefreshToken, cancellationToken);
 
         if (tokens == null)
@@ -246,30 +241,12 @@ public class AuthController(
     [Authorize]
     public async Task<IActionResult> Logout(LogoutRequest request, CancellationToken cancellationToken)
     {
+        // Revoke the supplied refresh token when provided.
         if (!string.IsNullOrWhiteSpace(request.RefreshToken))
         {
             await tokenService.RevokeRefreshTokenAsync(request.RefreshToken, cancellationToken);
         }
 
         return this.NoContent();
-    }
-
-    /// <summary>
-    /// Return the authenticated user's profile.
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Current user profile.</returns>
-    [HttpGet("me")]
-    [Authorize]
-    public async Task<IActionResult> GetCurrentUser(CancellationToken cancellationToken)
-    {
-        var user = await userApplicationService.GetCurrentUserAsync(cancellationToken);
-
-        if (user == null)
-        {
-            return this.Unauthorized();
-        }
-
-        return this.OkJson(user);
     }
 }

@@ -29,6 +29,20 @@ dotnet ef migrations add <MigrationName> \
 - `DbContext.OnModelCreating` may configure Identity junction tables; other entities use `ApplyConfigurationsFromAssembly`
 - Every entity must have a `DbSet<T>` property in `NTierTemplateDbContext` (alphabetical order)
 
+## Enums in the Database
+
+- **Do not store C# enums as integers** in the database unless absolutely necessary (performance-critical paths, legacy interop, etc.)
+- Persist enum properties as **human-readable strings** — configure `HasConversion<string>()` on the property and set a sensible `HasMaxLength`
+- C# has no native string-valued enum type; use a normal `enum` in code with EF string conversion, or a `string` column backed by named constants in code
+- Enum member names should read clearly in SQL and admin tools (e.g. `PendingRetry`, not `0`)
+
+```csharp
+builder.Property(entity => entity.Status)
+    .IsRequired()
+    .HasMaxLength(32)
+    .HasConversion<string>();
+```
+
 ## Materialized Views
 
 - Create only the entity class in the Data layer (no DTO in domain, no DAO)

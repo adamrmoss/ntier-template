@@ -1,91 +1,126 @@
-using NTierTemplate.Application.Email;
+using System.Security.Cryptography;
+using System.Text;
 using NTierTemplate.Application.Users;
+using NTierTemplate.Data.Users;
 using NTierTemplate.Users;
 
 namespace NTierTemplate.Application.Auth;
 
 /// <summary>
-/// Authentication use cases shared across entry-point hosts.
+/// Authentication, session, and refresh-token use cases.
 /// </summary>
 public class AuthApplicationService(
-    IUserApplicationService userApplicationService,
-    IAuthEmailService authEmailService
+    IUserDao userDao,
+    IRefreshTokenDao refreshTokenDao,
+    IPrincipalContainer principalContainer
 )
     : IAuthApplicationService
 {
     /// <inheritdoc />
-    public async Task<RegistrationResult> RegisterAndSendConfirmationAsync(
-        RegisterUserRequest request,
+    public async Task<User?> ValidatePasswordAsync(
+        string email,
+        string password,
         CancellationToken cancellationToken = default
     )
     {
-        var createResult = await userApplicationService.RegisterAsync(request, cancellationToken);
+        // Validate credentials against Identity.
+        var user = await userDao.ValidatePasswordAsync(email, password, cancellationToken);
 
-        if (!createResult.Succeeded || createResult.User == null)
+        // Establish the scoped principal when sign-in succeeds.
+        if (user is not null)
         {
-            return new RegistrationResult
-            {
-                CreateResult = createResult,
-                ConfirmationEmailSent = false,
-            };
+            principalContainer.SignIn(user);
         }
 
-        var confirmationToken = await userApplicationService.GenerateEmailConfirmationTokenAsync(
-            createResult.User.Id,
-            cancellationToken
-        );
-
-        if (confirmationToken == null)
-        {
-            return new RegistrationResult
-            {
-                CreateResult = createResult,
-                ConfirmationEmailSent = false,
-            };
-        }
-
-        await authEmailService.SendEmailConfirmationAsync(
-            createResult.User,
-            confirmationToken,
-            cancellationToken
-        );
-
-        return new RegistrationResult
-        {
-            CreateResult = createResult,
-            ConfirmationEmailSent = true,
-        };
+        return user;
     }
 
     /// <inheritdoc />
-    public async Task ResendConfirmationEmailAsync(string email, CancellationToken cancellationToken = default)
+    public Task<bool> CheckPasswordAsync(
+        string email,
+        string password,
+        CancellationToken cancellationToken = default
+    )
     {
-        var user = await userApplicationService.GetByEmailAsync(email, cancellationToken);
-
-        if (user == null || await userApplicationService.IsEmailConfirmedAsync(email, cancellationToken))
-        {
-            return;
-        }
-
-        var token = await userApplicationService.GenerateEmailConfirmationTokenAsync(
-            user.Id,
-            cancellationToken
-        );
-
-        if (token != null)
-        {
-            await authEmailService.SendEmailConfirmationAsync(user, token, cancellationToken);
-        }
+        return userDao.CheckPasswordAsync(email, password, cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task SendPasswordResetEmailAsync(string email, CancellationToken cancellationToken = default)
+    public Task<bool> IsEmailConfirmedAsync(string email, CancellationToken cancellationToken = default)
     {
-        var token = await userApplicationService.GeneratePasswordResetTokenAsync(email, cancellationToken);
+        return userDao.IsEmailConfirmedAsync(email, cancellationToken);
+    }
 
-        if (token != null)
+    /// <inheritdoc />
+    public async Task<User?> GetCurrentUserAsync(CancellationToken cancellationToken = default)
+    {
+        var principal = principalContainer.Principal;
+
+        // Return early when the scope has no authenticated principal.
+        if (principal?.Identity?.IsAuthenticated != true)
         {
-            await authEmailService.SendPasswordResetAsync(email, token, cancellationToken);
+            return null;
         }
+
+        // Resolve the domain user from the authenticated principal.
+        return await userDao.GetByPrincipalAsync(principal, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<string> IssueRefreshTokenAsync(
+        int userId,
+        int refreshTokenDays,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // Generate a raw token and store only its hash.
+        var rawToken = GenerateSecureToken();
+        var tokenHash = HashToken(rawToken);
+        var expiresAt = DateTime.UtcNow.AddDays(refreshTokenDays);
+
+        await refreshTokenDao.CreateAsync(userId, tokenHash, expiresAt, cancellationToken);
+
+        return rawToken;
+    }
+
+    /// <inheritdoc />
+    public async Task<int?> RedeemRefreshTokenAsync(
+        string rawToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // Look up a valid token by hash.
+        var tokenHash = HashToken(rawToken);
+        var userId = await refreshTokenDao.FindValidUserIdByTokenHashAsync(tokenHash, cancellationToken);
+
+        if (userId == null)
+        {
+            return null;
+        }
+
+        // Rotate by revoking the token that was just redeemed.
+        await refreshTokenDao.RevokeByTokenHashAsync(tokenHash, cancellationToken);
+
+        return userId;
+    }
+
+    /// <inheritdoc />
+    public Task RevokeRefreshTokenAsync(string rawToken, CancellationToken cancellationToken = default)
+    {
+        return refreshTokenDao.RevokeByTokenHashAsync(HashToken(rawToken), cancellationToken);
+    }
+
+    private static string GenerateSecureToken()
+    {
+        // Generate cryptographically random token bytes.
+        var bytes = RandomNumberGenerator.GetBytes(64);
+        return Convert.ToBase64String(bytes);
+    }
+
+    private static string HashToken(string token)
+    {
+        // Hash the raw token for storage and lookup.
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes);
     }
 }

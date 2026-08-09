@@ -21,3 +21,8 @@ dotnet add NTierTemplate.Queue/NTierTemplate.Queue.csproj package RabbitMQ.Clien
 ```
 
 After the user has created the project, help with harmonizing code, wiring, and documentation — not with replacing the `dotnet` tooling step.
+
+## Bash Scripts (`scripts/`)
+
+- Header comments describe **what** the script does and non-obvious prerequisites — not how to invoke it
+- Do **not** add `# Usage:` blocks or `#   ./scripts/foo.sh` lines; the path is obvious

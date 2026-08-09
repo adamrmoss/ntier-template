@@ -1,0 +1,39 @@
+.auth-dialog__error
+{
+    color: #b3261e;
+    margin: 0 0 12px;
+}
+
+.auth-dialog__field
+{
+    display: block;
+    width: 100%;
+}
+
+.auth-dialog__hint
+{
+    margin: 0 0 12px;
+}
+
+.auth-dialog__link
+{
+    background: none;
+    border: none;
+    color: var(--mat-sys-primary);
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.auth-dialog__links
+{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.auth-dialog__success
+{
+    margin: 0;
+}

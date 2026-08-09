@@ -1,0 +1,276 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Moq;
+using NTierTemplate.Application;
+using NTierTemplate.Application.Email;
+using NTierTemplate.Application.Queue;
+using NTierTemplate.Application.Users;
+using NTierTemplate.Data;
+using NTierTemplate.Data.Users;
+using NTierTemplate.Test.Support;
+using NTierTemplate.Users;
+
+namespace NTierTemplate.Test.NTierTemplate.Application.Users;
+
+[TestFixture]
+public class UserApplicationServiceTests
+{
+    private Mock<IUserDao> userDao = null!;
+    private Mock<IQueueApplicationService> queueApplicationService = null!;
+    private Mock<IEmailClient> emailClient = null!;
+    private Mock<IUnitOfWork> unitOfWork = null!;
+    private UserApplicationService service = null!;
+
+    [SetUp]
+    public void SetUp()
+    {
+        this.userDao = new Mock<IUserDao>();
+        this.queueApplicationService = new Mock<IQueueApplicationService>();
+        this.emailClient = new Mock<IEmailClient>();
+        this.unitOfWork = new Mock<IUnitOfWork>();
+        this.service = new UserApplicationService(
+            this.userDao.Object,
+            this.queueApplicationService.Object,
+            this.emailClient.Object,
+            this.unitOfWork.Object,
+            Options.Create(new AppOptions { FrontendBaseUrl = "http://localhost:8240" }),
+            NullLogger<UserApplicationService>.Instance
+        );
+    }
+
+    [Test]
+    public async Task RegisterAsync_ReturnsFailure_WhenEmailAlreadyExists()
+    {
+        this.userDao
+            .Setup(dao => dao.GetByEmailAsync("existing@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TestUsers.Create(email: "existing@example.com"));
+
+        var result = await this.service.RegisterAsync(
+            new RegisterUserRequest
+            {
+                Email = "existing@example.com",
+                Password = "password",
+            }
+        );
+
+        result.Succeeded.Should().BeFalse();
+        result.Errors.Should().Contain("An account with that email already exists.");
+        this.userDao.Verify(
+            dao => dao.CreateAsync(It.IsAny<RegisterUserRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+    }
+
+    [Test]
+    public async Task RegisterAsync_NormalizesRequestBeforeCreatingUser()
+    {
+        RegisterUserRequest? capturedRequest = null;
+
+        this.userDao
+            .Setup(dao => dao.GetByEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        this.userDao
+            .Setup(dao => dao.CreateAsync(It.IsAny<RegisterUserRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<RegisterUserRequest, CancellationToken>((request, _) => capturedRequest = request)
+            .ReturnsAsync(new UserCreateResult
+            {
+                Succeeded = true,
+                User = TestUsers.Create(email: "new@example.com"),
+            });
+
+        await this.service.RegisterAsync(
+            new RegisterUserRequest
+            {
+                Email = "  new@example.com  ",
+                Password = "password",
+                DisplayName = "  Ada  ",
+                FirstName = "  Ada  ",
+                LastName = "  Lovelace  ",
+            }
+        );
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Email.Should().Be("new@example.com");
+        capturedRequest.DisplayName.Should().Be("Ada");
+        capturedRequest.FirstName.Should().Be("Ada");
+        capturedRequest.LastName.Should().Be("Lovelace");
+    }
+
+    [Test]
+    public async Task CreateAdminAsync_ReturnsFailure_WhenEmailAlreadyExists()
+    {
+        this.userDao
+            .Setup(dao => dao.GetByEmailAsync("admin@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TestUsers.Create(email: "admin@example.com"));
+
+        var result = await this.service.CreateAdminAsync("admin@example.com", "password");
+
+        result.Succeeded.Should().BeFalse();
+        result.Errors.Should().Contain("A user with that email already exists.");
+        this.userDao.Verify(
+            dao => dao.CreateAdminAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+    }
+
+    [Test]
+    public async Task EnqueueRegisterUserAsync_EnqueuesRegisterUserCommand()
+    {
+        RegisterUserCommand? capturedCommand = null;
+
+        this.queueApplicationService
+            .Setup(queue => queue.EnqueueAsync(It.IsAny<RegisterUserCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<RegisterUserCommand, CancellationToken>((command, _) => capturedCommand = command)
+            .ReturnsAsync(Guid.NewGuid());
+
+        var messageId = await this.service.EnqueueRegisterUserAsync(
+            new RegisterUserRequest
+            {
+                Email = "new@example.com",
+                Password = "Password1",
+                FirstName = "Ada",
+                LastName = "Lovelace",
+            }
+        );
+
+        messageId.Should().NotBeEmpty();
+        capturedCommand.Should().NotBeNull();
+        capturedCommand!.Email.Should().Be("new@example.com");
+    }
+
+    [Test]
+    public async Task ProcessRegisterUserAsync_ReturnsDuplicateFailure_WhenEmailAlreadyExists()
+    {
+        this.userDao
+            .Setup(dao => dao.GetByEmailAsync("existing@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TestUsers.Create(email: "existing@example.com"));
+        this.userDao
+            .Setup(dao => dao.IsEmailConfirmedAsync("existing@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var result = await this.service.ProcessRegisterUserAsync(
+            new RegisterUserRequest
+            {
+                Email = "existing@example.com",
+                Password = "Password1",
+            }
+        );
+
+        result.Succeeded.Should().BeFalse();
+        result.IsDuplicateEmail.Should().BeTrue();
+        this.unitOfWork.Verify(
+            work => work.BeginTransactionAsync(It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+        this.emailClient.Verify(
+            client => client.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+    }
+
+    [Test]
+    public async Task ProcessRegisterUserAsync_ResendsConfirmation_WhenUnconfirmedAccountExists()
+    {
+        var existingUser = TestUsers.Create(email: "pending@example.com");
+
+        this.userDao
+            .Setup(dao => dao.GetByEmailAsync("pending@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingUser);
+        this.userDao
+            .Setup(dao => dao.IsEmailConfirmedAsync("pending@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        this.userDao
+            .Setup(dao => dao.GenerateEmailConfirmationTokenAsync(existingUser.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("confirmation-token");
+
+        var result = await this.service.ProcessRegisterUserAsync(
+            new RegisterUserRequest
+            {
+                Email = "pending@example.com",
+                Password = "Password1",
+            }
+        );
+
+        result.Succeeded.Should().BeTrue();
+        this.unitOfWork.Verify(
+            work => work.BeginTransactionAsync(It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+        this.emailClient.Verify(
+            client => client.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()),
+            Times.Once
+        );
+    }
+
+    [Test]
+    public async Task ProcessRegisterUserAsync_CommitsBeforeSendingEmail()
+    {
+        this.userDao
+            .Setup(dao => dao.GetByEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        this.userDao
+            .Setup(dao => dao.CreateAsync(It.IsAny<RegisterUserRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserCreateResult
+            {
+                Succeeded = true,
+                User = TestUsers.Create(email: "new@example.com"),
+            });
+        this.userDao
+            .Setup(dao => dao.GenerateEmailConfirmationTokenAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("confirmation-token");
+
+        var callOrder = 0;
+        this.unitOfWork
+            .Setup(work => work.CommitAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => callOrder = 1)
+            .Returns(Task.CompletedTask);
+        this.emailClient
+            .Setup(client => client.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
+            .Callback(() => callOrder.Should().Be(1))
+            .Returns(Task.CompletedTask);
+
+        var result = await this.service.ProcessRegisterUserAsync(
+            new RegisterUserRequest
+            {
+                Email = "new@example.com",
+                Password = "Password1",
+            }
+        );
+
+        result.Succeeded.Should().BeTrue();
+        this.unitOfWork.Verify(work => work.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task ResendConfirmationEmailAsync_SkipsConfirmedUsers()
+    {
+        this.userDao
+            .Setup(dao => dao.GetByEmailAsync("user@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TestUsers.Create());
+        this.userDao
+            .Setup(dao => dao.IsEmailConfirmedAsync("user@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        await this.service.ResendConfirmationEmailAsync("user@example.com");
+
+        this.userDao.Verify(
+            dao => dao.GenerateEmailConfirmationTokenAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+    }
+
+    [Test]
+    public async Task SendPasswordResetEmailAsync_SkipsMissingUsers()
+    {
+        this.userDao
+            .Setup(dao => dao.GeneratePasswordResetTokenAsync("missing@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+
+        await this.service.SendPasswordResetEmailAsync("missing@example.com");
+
+        this.emailClient.Verify(
+            client => client.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+    }
+}

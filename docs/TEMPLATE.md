@@ -13,6 +13,9 @@ dotnet new install .
 # Create a test instance
 dotnet new ntier -n DietzMoss -o /tmp/dietz-moss-test
 
+# Prompt for optional parameters (domain, web prefix, etc.)
+dotnet new ntier -n DietzMoss -o /tmp/dietz-moss-test --interactive
+
 # Uninstall when done
 dotnet new uninstall .
 ```
@@ -25,8 +28,11 @@ dotnet new uninstall .
 | `ntier-template` | `dietz-moss` | Solution name, kebab-case paths |
 | `ntier-template-web` | `dietz-moss-web` | Angular project folder |
 | `ntier` | `dm` | Angular component selector prefix |
+| `ntier-template.com` | `dietz-moss.com` | Production domain (nginx, api-config); default `{kebab-name}.com` |
 
 Override Angular prefix: `--webPrefixOverride <prefix>`
+
+Override production domain: `--domainNameOverride example.com`
 
 ### Symbols in `.template.config/template.json`
 
@@ -37,6 +43,7 @@ Override Angular prefix: `--webPrefixOverride <prefix>`
 | `kebabWebFolder` | Renames `ntier-template-web/` folder to `{kebab-name}-web` |
 | `webPrefix` | Angular prefix; defaults to lowercase initials from `-n` |
 | `webPrefixOverride` | Optional parameter to override prefix |
+| `domainName` | Production domain; defaults to `{kebab-name}.com`, overridable via `domainNameOverride` |
 
 `camelName` / `nTierTemplate` is defined but unused — candidate for removal.
 

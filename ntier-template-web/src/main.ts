@@ -6,5 +6,6 @@ import { appConfig } from './app/app.config';
 bootstrapApplication(AppComponent, appConfig)
     .catch((err) =>
     {
+        // Log bootstrap failures to the console.
         console.error(err);
     });

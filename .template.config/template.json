@@ -125,6 +125,7 @@
             "modifiers": [
                 {
                     "exclude": [
+                        "DietzMoss.NTierTemplate.csproj",
                         "docs/TEMPLATE.md"
                     ]
                 }

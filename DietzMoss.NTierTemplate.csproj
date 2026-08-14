@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <PackageId>DietzMoss.NTierTemplate</PackageId>
+        <PackageVersion>1.0.0</PackageVersion>
+        <Title>N-Tier Application Solution</Title>
+        <Authors>Adam R Moss</Authors>
+        <Description>N-tier enterprise application template: Angular client, ASP.NET Core API, CLI, and RabbitMQ worker queue.</Description>
+        <PackageTags>dotnet-new;templates;aspnetcore;angular;n-tier;solution</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/adamrmoss/ntier-template</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/adamrmoss/ntier-template</RepositoryUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+
+        <PackageType>Template</PackageType>
+        <TargetFramework>net9.0</TargetFramework>
+        <IncludeContentInPack>true</IncludeContentInPack>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <ContentTargetFolders>content</ContentTargetFolders>
+        <NoWarn>$(NoWarn);NU5128</NoWarn>
+        <NoDefaultExcludes>true</NoDefaultExcludes>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Content Include="**\*"
+                 Exclude="**\bin\**;**\obj\**;**\node_modules\**;**\.vs\**;**\.git\**;**\.angular\**;**\dist\**;**\out-tsc\**;**\artifacts\**;**\*.nupkg;**\*.snupkg;**\*.user;**\dbsettings.json;**\clisettings.json;**\queuesettings.json" />
+        <Compile Remove="**\*" />
+        <None Include="README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
+</Project>

@@ -30,6 +30,7 @@ public static class NTierTemplateApplicationExtensions
         serviceCollection.RegisterSerializers();
         serviceCollection.RegisterDaos();
         serviceCollection.RegisterServices();
+        serviceCollection.RegisterQueue(configuration);
 
         serviceCollection.AddDbContext<NTierTemplateDbContext>(options =>
         {

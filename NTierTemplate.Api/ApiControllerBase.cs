@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using NTierTemplate.Application.Ioc;
 
 namespace NTierTemplate.Api;
 
@@ -10,7 +11,8 @@ namespace NTierTemplate.Api;
 public abstract class ApiControllerBase(IOptionsMonitor<JsonSerializerOptions> jsonOptionsMonitor)
     : ControllerBase
 {
-    private readonly JsonSerializerOptions camelCaseJsonOptions = jsonOptionsMonitor.Get("CamelCaseOptions");
+    private readonly JsonSerializerOptions camelCaseJsonOptions =
+        jsonOptionsMonitor.Get(SerializerRegistrar.CamelCaseOptionsName);
 
     /// <summary>
     /// Return an Ok result with the value serialized as camelCase JSON for the frontend.

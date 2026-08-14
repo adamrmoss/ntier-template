@@ -1,24 +1,148 @@
-using System.Security.Cryptography;
-using System.Text;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NTierTemplate.Application.Email;
+using NTierTemplate.Application.Queue;
+using NTierTemplate.Data;
 using NTierTemplate.Data.Users;
 using NTierTemplate.Users;
 
 namespace NTierTemplate.Application.Users;
 
 /// <summary>
-/// Application use cases for account users.
+/// User account maintenance, registration, and transactional email use cases.
 /// </summary>
 public class UserApplicationService(
     IUserDao userDao,
-    IRefreshTokenDao refreshTokenDao,
-    IPrincipalContainer principalContainer
+    IQueueApplicationService queueApplicationService,
+    IEmailClient emailClient,
+    IUnitOfWork unitOfWork,
+    IOptions<AppOptions> appOptions,
+    ILogger<UserApplicationService> logger
 )
     : IUserApplicationService
 {
+    private readonly AppOptions options = appOptions.Value;
+
     /// <inheritdoc />
     public Task EnsureDefaultRolesExistAsync(CancellationToken cancellationToken = default)
     {
         return userDao.EnsureDefaultRolesExistAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<Guid> EnqueueRegisterUserAsync(
+        RegisterUserRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // Build the queue command from the registration request.
+        var command = new RegisterUserCommand
+        {
+            Email = request.Email,
+            Password = request.Password,
+            DisplayName = request.DisplayName,
+            FirstName = request.FirstName ?? string.Empty,
+            LastName = request.LastName ?? string.Empty,
+        };
+
+        return queueApplicationService.EnqueueAsync(command, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<ProcessRegisterUserResult> ProcessRegisterUserAsync(
+        RegisterUserRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            // Retry idempotently when an unconfirmed account already exists.
+            var existingUser = await userDao.GetByEmailAsync(request.Email, cancellationToken);
+
+            if (existingUser != null)
+            {
+                if (await userDao.IsEmailConfirmedAsync(request.Email, cancellationToken))
+                {
+                    return new ProcessRegisterUserResult
+                    {
+                        Succeeded = false,
+                        IsDuplicateEmail = true,
+                        ErrorMessage = "An account with that email already exists.",
+                    };
+                }
+
+                return await this.ResendRegistrationConfirmationAsync(existingUser, cancellationToken);
+            }
+
+            // Run registration inside a transaction boundary.
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            // Create the account through Identity.
+            var createResult = await this.RegisterAsync(request, cancellationToken);
+
+            if (!createResult.Succeeded || createResult.User == null)
+            {
+                // Classify duplicate-email failures as permanent.
+                var isDuplicateEmail = createResult.Errors.Any(error =>
+                    error.Contains("already exists", StringComparison.OrdinalIgnoreCase));
+
+                await unitOfWork.RollbackAsync(cancellationToken);
+
+                return new ProcessRegisterUserResult
+                {
+                    Succeeded = false,
+                    IsDuplicateEmail = isDuplicateEmail,
+                    ErrorMessage = createResult.Errors.FirstOrDefault() ?? "Registration failed.",
+                };
+            }
+
+            // Generate an email confirmation token for the new account.
+            var confirmationToken = await userDao.GenerateEmailConfirmationTokenAsync(
+                createResult.User.Id,
+                cancellationToken
+            );
+
+            if (confirmationToken == null)
+            {
+                // Roll back when Identity cannot produce a confirmation token.
+                await unitOfWork.RollbackAsync(cancellationToken);
+
+                return new ProcessRegisterUserResult
+                {
+                    Succeeded = false,
+                    ErrorMessage = "Could not generate email confirmation token.",
+                };
+            }
+
+            // Commit the account before sending email outside the transaction.
+            await unitOfWork.CommitAsync(cancellationToken);
+
+            return await this.SendRegistrationConfirmationAsync(
+                createResult.User,
+                confirmationToken,
+                cancellationToken
+            );
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Register user command failed.");
+
+            try
+            {
+                // Best-effort rollback after an unexpected error.
+                await unitOfWork.RollbackAsync(cancellationToken);
+            }
+            catch (Exception rollbackException)
+            {
+                logger.LogWarning(rollbackException, "Rollback failed after register user error.");
+            }
+
+            return new ProcessRegisterUserResult
+            {
+                Succeeded = false,
+                ErrorMessage = exception.Message,
+            };
+        }
     }
 
     /// <inheritdoc />
@@ -27,6 +151,7 @@ public class UserApplicationService(
         CancellationToken cancellationToken = default
     )
     {
+        // Reject registration when the email is already taken.
         var existingUser = await userDao.GetByEmailAsync(request.Email, cancellationToken);
 
         if (existingUser != null)
@@ -38,6 +163,7 @@ public class UserApplicationService(
             };
         }
 
+        // Normalize request fields before persistence.
         var normalizedRequest = new RegisterUserRequest
         {
             Email = request.Email.Trim(),
@@ -47,6 +173,7 @@ public class UserApplicationService(
             LastName = string.IsNullOrWhiteSpace(request.LastName) ? string.Empty : request.LastName.Trim(),
         };
 
+        // Persist the new account through the user DAO.
         return await userDao.CreateAsync(normalizedRequest, cancellationToken);
     }
 
@@ -57,6 +184,7 @@ public class UserApplicationService(
         CancellationToken cancellationToken = default
     )
     {
+        // Reject creation when the email is already taken.
         var existingUser = await userDao.GetByEmailAsync(email, cancellationToken);
 
         if (existingUser != null)
@@ -68,6 +196,7 @@ public class UserApplicationService(
             };
         }
 
+        // Create the administrator account through the user DAO.
         return await userDao.CreateAdminAsync(email, password, cancellationToken);
     }
 
@@ -84,58 +213,35 @@ public class UserApplicationService(
     }
 
     /// <inheritdoc />
-    public async Task<User?> GetCurrentUserAsync(CancellationToken cancellationToken = default)
+    public async Task ResendConfirmationEmailAsync(string email, CancellationToken cancellationToken = default)
     {
-        var principal = principalContainer.Principal;
+        // Load the account and skip confirmed or missing users.
+        var user = await userDao.GetByEmailAsync(email, cancellationToken);
 
-        if (principal?.Identity?.IsAuthenticated != true)
+        if (user == null || await userDao.IsEmailConfirmedAsync(email, cancellationToken))
         {
-            return null;
+            return;
         }
 
-        return await userDao.GetByPrincipalAsync(principal, cancellationToken);
-    }
+        // Generate a fresh confirmation token and send the email.
+        var token = await userDao.GenerateEmailConfirmationTokenAsync(user.Id, cancellationToken);
 
-    /// <inheritdoc />
-    public async Task<User?> ValidatePasswordAsync(
-        string email,
-        string password,
-        CancellationToken cancellationToken = default
-    )
-    {
-        var user = await userDao.ValidatePasswordAsync(email, password, cancellationToken);
-
-        if (user is not null)
+        if (token != null)
         {
-            principalContainer.SignIn(user);
+            await this.SendEmailConfirmationAsync(user, token, cancellationToken);
         }
-
-        return user;
     }
 
     /// <inheritdoc />
-    public Task<bool> CheckPasswordAsync(
-        string email,
-        string password,
-        CancellationToken cancellationToken = default
-    )
+    public async Task SendPasswordResetEmailAsync(string email, CancellationToken cancellationToken = default)
     {
-        return userDao.CheckPasswordAsync(email, password, cancellationToken);
-    }
+        // Generate a password reset token when the account exists.
+        var token = await userDao.GeneratePasswordResetTokenAsync(email, cancellationToken);
 
-    /// <inheritdoc />
-    public Task<bool> IsEmailConfirmedAsync(string email, CancellationToken cancellationToken = default)
-    {
-        return userDao.IsEmailConfirmedAsync(email, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public Task<string?> GenerateEmailConfirmationTokenAsync(
-        int userId,
-        CancellationToken cancellationToken = default
-    )
-    {
-        return userDao.GenerateEmailConfirmationTokenAsync(userId, cancellationToken);
+        if (token != null)
+        {
+            await this.SendPasswordResetAsync(email, token, cancellationToken);
+        }
     }
 
     /// <inheritdoc />
@@ -149,15 +255,6 @@ public class UserApplicationService(
     }
 
     /// <inheritdoc />
-    public Task<string?> GeneratePasswordResetTokenAsync(
-        string email,
-        CancellationToken cancellationToken = default
-    )
-    {
-        return userDao.GeneratePasswordResetTokenAsync(email, cancellationToken);
-    }
-
-    /// <inheritdoc />
     public Task<AuthOperationResult> ResetPasswordAsync(
         string email,
         string token,
@@ -168,56 +265,119 @@ public class UserApplicationService(
         return userDao.ResetPasswordAsync(email, token, newPassword, cancellationToken);
     }
 
-    /// <inheritdoc />
-    public async Task<string> IssueRefreshTokenAsync(
-        int userId,
-        int refreshTokenDays,
-        CancellationToken cancellationToken = default
+    private async Task<ProcessRegisterUserResult> ResendRegistrationConfirmationAsync(
+        User user,
+        CancellationToken cancellationToken
     )
     {
-        var rawToken = GenerateSecureToken();
-        var tokenHash = HashToken(rawToken);
-        var expiresAt = DateTime.UtcNow.AddDays(refreshTokenDays);
+        // Generate a fresh confirmation token for the existing unconfirmed account.
+        var confirmationToken = await userDao.GenerateEmailConfirmationTokenAsync(user.Id, cancellationToken);
 
-        await refreshTokenDao.CreateAsync(userId, tokenHash, expiresAt, cancellationToken);
-
-        return rawToken;
-    }
-
-    /// <inheritdoc />
-    public async Task<int?> RedeemRefreshTokenAsync(
-        string rawToken,
-        CancellationToken cancellationToken = default
-    )
-    {
-        var tokenHash = HashToken(rawToken);
-        var userId = await refreshTokenDao.FindValidUserIdByTokenHashAsync(tokenHash, cancellationToken);
-
-        if (userId == null)
+        if (confirmationToken == null)
         {
-            return null;
+            return new ProcessRegisterUserResult
+            {
+                Succeeded = false,
+                ErrorMessage = "Could not generate email confirmation token.",
+            };
         }
 
-        await refreshTokenDao.RevokeByTokenHashAsync(tokenHash, cancellationToken);
-
-        return userId;
+        return await this.SendRegistrationConfirmationAsync(user, confirmationToken, cancellationToken);
     }
 
-    /// <inheritdoc />
-    public Task RevokeRefreshTokenAsync(string rawToken, CancellationToken cancellationToken = default)
+    private async Task<ProcessRegisterUserResult> SendRegistrationConfirmationAsync(
+        User user,
+        string confirmationToken,
+        CancellationToken cancellationToken
+    )
     {
-        return refreshTokenDao.RevokeByTokenHashAsync(HashToken(rawToken), cancellationToken);
+        try
+        {
+            // Send email outside the database transaction so retries can resend safely.
+            await this.SendEmailConfirmationAsync(user, confirmationToken, cancellationToken);
+
+            return new ProcessRegisterUserResult
+            {
+                Succeeded = true,
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                exception,
+                "Failed to send registration confirmation email to {Email}.",
+                user.Email
+            );
+
+            return new ProcessRegisterUserResult
+            {
+                Succeeded = false,
+                ErrorMessage = exception.Message,
+            };
+        }
     }
 
-    private static string GenerateSecureToken()
+    private Task SendEmailConfirmationAsync(
+        User user,
+        string confirmationToken,
+        CancellationToken cancellationToken
+    )
     {
-        var bytes = RandomNumberGenerator.GetBytes(64);
-        return Convert.ToBase64String(bytes);
+        // Build the frontend confirmation link with an encoded token.
+        var encodedToken = Uri.EscapeDataString(confirmationToken);
+        var link = $"{this.options.FrontendBaseUrl.TrimEnd('/')}/confirm-email?userId={user.Id}&token={encodedToken}";
+        var subject = "Confirm your account";
+        var plainText =
+            $"Welcome.\n\nConfirm your email address by opening this link:\n{link}\n\nIf you did not create an account, you can ignore this message.";
+        var htmlBody = $"""
+            <p>Welcome.</p>
+            <p><a href="{link}">Confirm your email address</a></p>
+            <p>If you did not create an account, you can ignore this message.</p>
+            """;
+
+        // Send the confirmation email.
+        return emailClient.SendAsync(
+            new EmailMessage
+            {
+                ToAddress = user.Email,
+                Subject = subject,
+                PlainTextBody = plainText,
+                HtmlBody = htmlBody,
+            },
+            cancellationToken
+        );
     }
 
-    private static string HashToken(string token)
+    private Task SendPasswordResetAsync(
+        string email,
+        string resetToken,
+        CancellationToken cancellationToken
+    )
     {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
-        return Convert.ToHexString(bytes);
+        // Build the frontend reset link with encoded email and token.
+        var encodedEmail = Uri.EscapeDataString(email);
+        var encodedToken = Uri.EscapeDataString(resetToken);
+        var link =
+            $"{this.options.FrontendBaseUrl.TrimEnd('/')}/reset-password?email={encodedEmail}&token={encodedToken}";
+        var subject = "Reset your password";
+        var plainText =
+            $"A password reset was requested for your account.\n\nReset your password by opening this link:\n{link}\n\nIf you did not request a reset, you can ignore this message.";
+        var htmlBody = $"""
+            <p>A password reset was requested for your account.</p>
+            <p><a href="{link}">Reset your password</a></p>
+            <p>If you did not request a reset, you can ignore this message.</p>
+            """;
+
+        // Send the password reset email.
+        return emailClient.SendAsync(
+            new EmailMessage
+            {
+                ToAddress = email,
+                Subject = subject,
+                PlainTextBody = plainText,
+                HtmlBody = htmlBody,
+            },
+            cancellationToken
+        );
     }
 }

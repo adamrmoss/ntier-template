@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using NTierTemplate.Data.FailedCommands;
 using NTierTemplate.Data.Users;
 
 namespace NTierTemplate.Data;
@@ -20,6 +21,8 @@ public class NTierTemplateDbContext : IdentityDbContext<ApplicationUser, Applica
     }
 
     public DbSet<RefreshToken> RefreshToken { get; set; }
+
+    public DbSet<FailedCommand> FailedCommand { get; set; }
 
     /// <summary>
     /// Apply entity configurations defined on persistence types in this assembly.

@@ -1,0 +1,15 @@
+[Unit]
+Description=NTierTemplate Queue
+After=network.target rabbitmq-server.service
+Requires=rabbitmq-server.service
+
+[Service]
+WorkingDirectory=/opt/ntier-template/queue
+ExecStart=/opt/ntier-template/queue/NTierTemplate.Queue
+Restart=always
+RestartSec=10
+User=amoss
+Environment=DOTNET_ENVIRONMENT=Production
+
+[Install]
+WantedBy=multi-user.target

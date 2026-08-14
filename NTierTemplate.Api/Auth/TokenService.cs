@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using NTierTemplate.Application.Auth;
 using NTierTemplate.Application.Users;
 using NTierTemplate.Users;
 using Microsoft.Extensions.Options;
@@ -12,6 +13,7 @@ namespace NTierTemplate.Api.Auth;
 /// Issues and validates JWT access tokens and refresh tokens.
 /// </summary>
 public class TokenService(
+    IAuthApplicationService authApplicationService,
     IUserApplicationService userApplicationService,
     IOptions<JwtOptions> jwtOptions
 )
@@ -25,9 +27,12 @@ public class TokenService(
         CancellationToken cancellationToken = default
     )
     {
+        // Compute access-token expiry and mint the JWT.
         var accessTokenExpiresAt = DateTime.UtcNow.AddMinutes(this.options.AccessTokenMinutes);
         var accessToken = this.CreateAccessToken(user, accessTokenExpiresAt);
-        var refreshToken = await userApplicationService.IssueRefreshTokenAsync(
+
+        // Issue a new refresh token for the user.
+        var refreshToken = await authApplicationService.IssueRefreshTokenAsync(
             user.Id,
             this.options.RefreshTokenDays,
             cancellationToken
@@ -44,13 +49,15 @@ public class TokenService(
     /// <inheritdoc />
     public async Task<TokenResponse?> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
-        var userId = await userApplicationService.RedeemRefreshTokenAsync(refreshToken, cancellationToken);
+        // Redeem the refresh token and obtain the user id.
+        var userId = await authApplicationService.RedeemRefreshTokenAsync(refreshToken, cancellationToken);
 
         if (userId == null)
         {
             return null;
         }
 
+        // Load the user for token issuance.
         var user = await userApplicationService.GetByIdAsync(userId.Value, cancellationToken);
 
         if (user == null)
@@ -58,17 +65,19 @@ public class TokenService(
             return null;
         }
 
+        // Issue a fresh access and refresh token pair.
         return await this.CreateTokenPairAsync(user, cancellationToken);
     }
 
     /// <inheritdoc />
     public Task RevokeRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
-        return userApplicationService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
+        return authApplicationService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
     }
 
     private string CreateAccessToken(User user, DateTime expiresAt)
     {
+        // Build standard identity and JWT subject claims.
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -77,11 +86,13 @@ public class TokenService(
             new(ClaimTypes.Email, user.Email),
         };
 
+        // Add one role claim per assigned role.
         foreach (var role in user.Roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
+        // Sign the token with the configured key.
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(this.options.SigningKey));
         var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 

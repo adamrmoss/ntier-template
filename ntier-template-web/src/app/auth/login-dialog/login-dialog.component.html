@@ -1,0 +1,64 @@
+@if (forgotPasswordVisible)
+{
+    <h2 mat-dialog-title>Reset password</h2>
+
+    <mat-dialog-content [formGroup]="form">
+        @if (errorMessage)
+        {
+            <p class="auth-dialog__error" role="alert">{{ errorMessage }}</p>
+        }
+
+        @if (forgotPasswordMessage)
+        {
+            <p class="auth-dialog__success">{{ forgotPasswordMessage }}</p>
+        }
+        @else
+        {
+            <p class="auth-dialog__hint">Enter your email address and we will send a password reset link.</p>
+
+            <mat-form-field appearance="outline" class="auth-dialog__field">
+                <mat-label>Email</mat-label>
+                <input matInput formControlName="email" type="email" autocomplete="email" />
+            </mat-form-field>
+        }
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+        <button mat-button type="button" [disabled]="submitting" (click)="onCancel()">Cancel</button>
+        @if (!forgotPasswordMessage)
+        {
+            <button mat-flat-button type="button" [disabled]="submitting" (click)="onSendForgotPassword()">Send reset link</button>
+        }
+    </mat-dialog-actions>
+}
+@else
+{
+    <h2 mat-dialog-title>Sign in</h2>
+
+    <mat-dialog-content [formGroup]="form">
+        @if (errorMessage)
+        {
+            <p class="auth-dialog__error" role="alert">{{ errorMessage }}</p>
+        }
+
+        <mat-form-field appearance="outline" class="auth-dialog__field">
+            <mat-label>Email</mat-label>
+            <input matInput formControlName="email" type="email" autocomplete="email" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="auth-dialog__field">
+            <mat-label>Password</mat-label>
+            <input matInput formControlName="password" type="password" autocomplete="current-password" />
+        </mat-form-field>
+
+        <div class="auth-dialog__links">
+            <button class="auth-dialog__link" type="button" (click)="onShowForgotPassword()">Forgot password?</button>
+            <button class="auth-dialog__link" type="button" (click)="onOpenRegister()">Create an account</button>
+        </div>
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+        <button mat-button type="button" [disabled]="submitting" (click)="onCancel()">Cancel</button>
+        <button mat-flat-button type="button" [disabled]="submitting" (click)="onSubmit()">Sign in</button>
+    </mat-dialog-actions>
+}

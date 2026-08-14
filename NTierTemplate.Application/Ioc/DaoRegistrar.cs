@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using NTierTemplate.Data;
+using NTierTemplate.Data.FailedCommands;
 using NTierTemplate.Data.Users;
 
 namespace NTierTemplate.Application.Ioc;
@@ -16,5 +18,7 @@ public static class DaoRegistrar
     {
         serviceCollection.AddScoped<IUserDao, UserDao>();
         serviceCollection.AddScoped<IRefreshTokenDao, RefreshTokenDao>();
+        serviceCollection.AddScoped<IFailedCommandDao, FailedCommandDao>();
+        serviceCollection.AddScoped<IUnitOfWork, UnitOfWork>();
     }
 }

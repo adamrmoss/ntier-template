@@ -125,6 +125,62 @@ namespace NTierTemplate.Data.Migrations
                     b.ToTable("UserToken", (string)null);
                 });
 
+            modelBuilder.Entity("NTierTemplate.Data.FailedCommands.FailedCommand", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CommandName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)");
+
+                    b.Property<DateTime>("FailedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("NextRetryAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_FailedCommand_MessageId");
+
+                    b.HasIndex("Status", "NextRetryAtUtc")
+                        .HasDatabaseName("IX_FailedCommand_Status_NextRetryAtUtc");
+
+                    b.ToTable("FailedCommand", null, t =>
+                        {
+                            t.HasComment("Failed queue commands awaiting retry or manual review.");
+                        });
+                });
+
             modelBuilder.Entity("NTierTemplate.Data.Users.ApplicationRole", b =>
                 {
                     b.Property<int>("Id")

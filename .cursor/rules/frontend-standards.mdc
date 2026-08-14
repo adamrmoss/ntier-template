@@ -15,6 +15,7 @@ The Angular client lives in `ntier-template-web/` at the repo root — kebab-cas
 - **NgRx** `21.1.x` (`@ngrx/store`, `@ngrx/effects`, `@ngrx/store-devtools`) — minor version must match installed NgRx line; major must match Angular
 - In `package.json`, use **minor-version wildcards** (e.g. `21.2.x`, `7.8.x`) — never `^` or `~`
 - **Standalone components** with separate template and stylesheet files; never embed SCSS or HTML in the component TypeScript file
+- **No CDN assets** — fonts, icons, and other static dependencies come from npm and are bundled by the build (e.g. `@fontsource/roboto`, `@material-design-icons/svg` + `MatIconRegistry`); do not link Google Fonts or other external stylesheets in `index.html`
 
 ## Component Prefix
 

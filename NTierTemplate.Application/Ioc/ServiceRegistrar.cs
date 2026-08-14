@@ -17,7 +17,6 @@ public static class ServiceRegistrar
     public static void RegisterServices(this IServiceCollection serviceCollection)
     {
         serviceCollection.AddScoped<IEmailClient, SmtpEmailClient>();
-        serviceCollection.AddScoped<IAuthEmailService, AuthEmailService>();
         serviceCollection.AddScoped<IAuthApplicationService, AuthApplicationService>();
         serviceCollection.AddScoped<IUserApplicationService, UserApplicationService>();
     }

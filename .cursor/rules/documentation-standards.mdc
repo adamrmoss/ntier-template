@@ -1,36 +1,72 @@
 ---
-description: Comments and documentation for types and methods
+description: How to document code so readers understand what it does
 globs: "**/*.cs,**/*.ts,**/*.tsx"
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Documentation Standards
 
-Comments document the codebase for future readers. They should be concise, action-oriented, and on their own line (never inline).
+Documentation has **two layers**. Both are required where they apply. They answer different questions and **do not replace each other**.
 
-## General Principles
+| Layer | Question it answers | Where |
+|-------|---------------------|--------|
+| **Public contract** | What does this API do? What goes in and out? | `///` / TSDoc on public types, methods, and properties |
+| **Algorithm** | How does this implementation work step by step? | `//` comments before each logical block inside method bodies |
 
-- Comments document the codebase, not the developer (use chat for that)
-- Comments always go on their own line, never inline
-- Within method bodies, add brief `//` section headers before each logical block
-- Method descriptions should be action-oriented, starting with verbs (e.g. "Verify the signature", "Compute the hash", "Read the request body")
-- Every distinct logical operation (validation, computation, I/O, branching) should have a brief comment preceding it
+When the user asks to document code, they mean **both** unless they specify otherwise.
 
-## C# (XML Documentation)
+## Public Contract (Required on Public API)
 
-For `*.cs` files:
+**C#**
 
-- Use `/// <summary>` for types (classes, interfaces), public methods, and public properties
-- Use `/// <param name="...">` for each method parameter
-- Use `/// <returns>` for method return values
-- Keep summary text concise and action-oriented
+- `/// <summary>` on public types, public methods, and public properties
+- `/// <param name="...">` for each method parameter
+- `/// <returns>` when the method returns a value
+- Keep summaries concise and action-oriented
 
-## TypeScript (TSDoc)
+**TypeScript**
 
-For `*.ts` and `*.tsx` files, use [TSDoc](https://tsdoc.org):
+- TSDoc on public types, classes, and public methods
+- `@param` and `@returns` where applicable
 
-- Use `/** ... */` doc comments for types, classes, and public methods
-- The text before the first block tag is the summary; keep it brief and action-oriented
-- Use `@param paramName - description` for each method parameter
-- Use `@returns description` for method return values (omit for `void`)
-- Optional: `@remarks` for longer documentation; `@example` for usage examples
+**Type-level summaries** may use a sentence or two for scope and boundaries — not in Cursor rules or `<remarks>`.
+
+## Algorithm Comments (Required in Method Bodies)
+
+- Add a brief `//` comment on its own line **before each logical block** in a method body
+- Cover every distinct step: validation, branching, I/O, computation, error handling, transaction boundaries
+- Write action-oriented sentences starting with verbs ("Resolve the command type", "Roll back the transaction", "Skip types that are not concrete classes")
+- Apply to **public and private methods alike** when the body has non-trivial logic
+- **Never inline** — comments always sit on their own line above the code they describe
+- Skip body comments only for truly trivial one-liners (e.g. `return userDao.GetByIdAsync(id, cancellationToken);`)
+
+## What Good Looks Like
+
+Public contract **and** algorithm comments together:
+
+```csharp
+/// <summary>
+/// Resolve the command CLR type from the envelope command name.
+/// </summary>
+/// <param name="commandTypeName">Assembly-qualified or full type name from the envelope.</param>
+/// <returns>The command type, or null when the name cannot be resolved.</returns>
+private static Type? ResolveCommandType(string commandTypeName)
+{
+    // Try assembly-qualified name first (what EnqueueAsync writes today).
+    var commandType = Type.GetType(commandTypeName, throwOnError: false);
+
+    if (commandType != null)
+    {
+        return commandType;
+    }
+
+    // Fall back to full name in the domain assembly (older queued messages).
+    return typeof(AssemblyMarker).Assembly.GetType(commandTypeName);
+}
+```
+
+## What Bad Looks Like
+
+- Public method with `/// <summary>` but **no** body comments explaining the steps
+- Method body full of `//` comments but **no** contract docs on a **public** method
+- Replacing one layer with the other when both apply

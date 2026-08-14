@@ -1,0 +1,40 @@
+<mat-toolbar color="primary" class="shell-toolbar">
+    <a class="shell-toolbar__brand" routerLink="/">{{ appName }}</a>
+
+    <span class="shell-toolbar__spacer"></span>
+
+    <button
+        mat-button
+        type="button"
+        class="shell-toolbar__account"
+        [matMenuTriggerFor]="accountMenu"
+        aria-label="Account menu">
+        <mat-icon svgIcon="account_circle" />
+        <span class="shell-toolbar__account-label">{{ userLabel }}</span>
+    </button>
+
+    <mat-menu #accountMenu="matMenu">
+        @if (isAuthenticated)
+        {
+            <button mat-menu-item type="button" (click)="onLogout()">
+                <mat-icon svgIcon="logout" />
+                <span>Sign out</span>
+            </button>
+        }
+        @else
+        {
+            <button mat-menu-item type="button" (click)="onLogin()">
+                <mat-icon svgIcon="login" />
+                <span>Sign in</span>
+            </button>
+            <button mat-menu-item type="button" (click)="onRegister()">
+                <mat-icon svgIcon="person_add" />
+                <span>Create account</span>
+            </button>
+        }
+    </mat-menu>
+</mat-toolbar>
+
+<main class="shell-content">
+    <router-outlet />
+</main>

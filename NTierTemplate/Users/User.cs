@@ -15,7 +15,7 @@ public class User
 
     public required string DisplayName { get; set; }
 
-    public required string[] Roles { get; set; } = ["User"];
+    public required UserRole[] Roles { get; set; } = [UserRole.User];
 
     /// <summary>
     /// Avatar initials derived from the user's name.
@@ -46,11 +46,11 @@ public class User
     /// <summary>
     /// Determine whether the user has a specific role.
     /// </summary>
-    ///
     /// <param name="role">Role to check.</param>
-    public bool HasRole(string role)
+    /// <returns>True when the user has the role.</returns>
+    public bool HasRole(UserRole role)
     {
-        return this.Roles.Contains(role, StringComparer.OrdinalIgnoreCase);
+        return this.Roles.Contains(role);
     }
 
     /// <summary>
@@ -60,7 +60,7 @@ public class User
     {
         get
         {
-            return this.HasRole("Admin");
+            return this.HasRole(UserRole.Admin);
         }
     }
 }

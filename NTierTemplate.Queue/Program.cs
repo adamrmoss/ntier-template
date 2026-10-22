@@ -21,6 +21,6 @@ builder.Services.AddHostedService<QueueConsumerService>();
 var host = builder.Build();
 
 // Ensure Identity roles exist before processing commands.
-await NTierTemplateStartupExtensions.EnsureDefaultRolesAsync(host.Services);
+await NTierTemplateStartup.EnsureDefaultRolesAsync(host.Services);
 
 await host.RunAsync();

@@ -17,19 +17,17 @@ public abstract class CliCommand
     /// <summary>
     /// Email option for the signed-in account executing the command.
     /// </summary>
-    protected Option<string> EmailOption { get; } = new("--email")
+    protected Option<string> EmailOption { get; } = new("--email", "Account email address.")
     {
-        Description = "Account email address.",
-        Required = true,
+        IsRequired = true,
     };
 
     /// <summary>
     /// Password option for the signed-in account executing the command.
     /// </summary>
-    protected Option<string> PasswordOption { get; } = new("--password")
+    protected Option<string> PasswordOption { get; } = new("--password", "Account password.")
     {
-        Description = "Account password.",
-        Required = true,
+        IsRequired = true,
     };
 
     /// <summary>
@@ -44,8 +42,8 @@ public abstract class CliCommand
     /// <param name="command">The command to configure.</param>
     protected void AddAuthOptions(Command command)
     {
-        command.Options.Add(this.EmailOption);
-        command.Options.Add(this.PasswordOption);
+        command.AddOption(this.EmailOption);
+        command.AddOption(this.PasswordOption);
     }
 
     /// <summary>
@@ -64,7 +62,7 @@ public abstract class CliCommand
     {
         // Bootstrap a host and scoped service provider.
         using var host = CreateHost();
-        using var scope = host.Services.CreateScope();
+        await using var scope = host.Services.CreateAsyncScope();
 
         // Authenticate the caller before running command logic.
         await this.AuthenticateAsync(scope.ServiceProvider, email, password, cancellationToken);
@@ -88,7 +86,7 @@ public abstract class CliCommand
     {
         // Bootstrap a host and scoped service provider.
         using var host = CreateHost();
-        using var scope = host.Services.CreateScope();
+        await using var scope = host.Services.CreateAsyncScope();
 
         // Require an authenticated administrator before running command logic.
         await this.RequireAdminAsync(scope.ServiceProvider, email, password, cancellationToken);

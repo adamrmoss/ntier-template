@@ -15,6 +15,7 @@ alwaysApply: false
 - Add line breaks between logical groups of code for readability
 - Keep each logical operation visually separate from others
 - Never use the `dynamic` type — always use strongly-typed variables, explicit types, or anonymous types
+- A closed set of string values is an enum. The member name is the string value (`name.ToString()`). Do not declare a parallel set of `const string` values for the same set.
 - Always include a space after type cast operators (e.g. `(float) value`, not `(float)value`)
 - Use LINQ method syntax (`.Where()`, `.Join()`, `.Select()`, etc.) only; do not use LINQ query syntax (`from`/`join`/`where`/`select`)
 - When a method signature, method call, primary constructor parameter list, or other parenthesized argument list spans multiple lines, place the closing `)` on its own line

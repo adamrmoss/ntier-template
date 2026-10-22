@@ -33,7 +33,7 @@ dotnet ef migrations add <MigrationName> \
 
 - **Do not store C# enums as integers** in the database unless absolutely necessary (performance-critical paths, legacy interop, etc.)
 - Persist enum properties as **human-readable strings** — configure `HasConversion<string>()` on the property and set a sensible `HasMaxLength`
-- C# has no native string-valued enum type; use a normal `enum` in code with EF string conversion, or a `string` column backed by named constants in code
+- A closed set of string values is an enum. The member name is the string value. Persist it with `HasConversion<string>()`. Do not add a parallel set of string constants for those values.
 - Enum member names should read clearly in SQL and admin tools (e.g. `PendingRetry`, not `0`)
 
 ```csharp
@@ -42,6 +42,14 @@ builder.Property(entity => entity.Status)
     .HasMaxLength(32)
     .HasConversion<string>();
 ```
+
+## Composite Public-Key Foreign Keys
+
+- Every entity with a public identifier (`Slug`, `Email`, etc.) exposes that column as a **unique alternate key** in EF (`HasAlternateKey`, or a unique index used as the principal key)
+- **Foreign-key relationships store both** the internal `Id` **and** the public identifier column(s) of the principal entity
+- Configure **composite foreign keys** so `(PrincipalId, PrincipalPublicKey)` on the dependent matches `(Id, PublicKey)` on the principal — enforces consistency between surrogate id and public key at the database level
+- When an aggregate has no slug, use its natural public key (e.g. `User` → `Email` on dependent rows when that relationship is next touched)
+- Domain aggregates stay free of FK columns; composite FK columns live on **EF persistence types** (junction tables, join rows) only
 
 ## Materialized Views
 

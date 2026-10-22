@@ -5,9 +5,17 @@ namespace NTierTemplate.Data.Users;
 /// <summary>
 /// Data access for rotating refresh tokens.
 /// </summary>
-public class RefreshTokenDao(NTierTemplateDbContext dbContext)
-    : DaoBase, IRefreshTokenDao
+public class RefreshTokenDao : DaoBase, IRefreshTokenDao
 {
+    /// <summary>
+    /// Create refresh-token data access bound to the database context.
+    /// </summary>
+    /// <param name="dbContext">The database context.</param>
+    public RefreshTokenDao(NTierTemplateDbContext dbContext)
+        : base(dbContext)
+    {
+    }
+
     /// <inheritdoc />
     public async Task CreateAsync(
         int userId,
@@ -17,7 +25,7 @@ public class RefreshTokenDao(NTierTemplateDbContext dbContext)
     )
     {
         // Stage a new refresh token row.
-        dbContext.RefreshToken.Add(
+        this.dbContext.RefreshToken.Add(
             new RefreshToken
             {
                 UserId = userId,
@@ -28,7 +36,7 @@ public class RefreshTokenDao(NTierTemplateDbContext dbContext)
         );
 
         // Persist the token to the database.
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await this.dbContext.SaveChangesAsync(cancellationToken);
     }
 
     /// <inheritdoc />
@@ -37,7 +45,7 @@ public class RefreshTokenDao(NTierTemplateDbContext dbContext)
         CancellationToken cancellationToken = default
     )
     {
-        var storedToken = await dbContext.RefreshToken
+        var storedToken = await this.dbContext.RefreshToken
             .AsNoTracking()
             .SingleOrDefaultAsync(
                 token => token.TokenHash == tokenHash
@@ -53,7 +61,7 @@ public class RefreshTokenDao(NTierTemplateDbContext dbContext)
     public async Task RevokeByTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default)
     {
         // Load the active token matching the hash.
-        var storedToken = await dbContext.RefreshToken
+        var storedToken = await this.dbContext.RefreshToken
             .SingleOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
 
         // Ignore missing or already-revoked tokens.
@@ -64,6 +72,6 @@ public class RefreshTokenDao(NTierTemplateDbContext dbContext)
 
         // Mark the token revoked and persist the change.
         storedToken.RevokedAt = DateTime.UtcNow;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await this.dbContext.SaveChangesAsync(cancellationToken);
     }
 }

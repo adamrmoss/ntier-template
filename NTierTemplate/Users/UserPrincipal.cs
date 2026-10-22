@@ -25,7 +25,7 @@ public static class UserPrincipal
         // Add one role claim per assigned role.
         foreach (var role in user.Roles)
         {
-            claims.Add(new Claim(ClaimTypes.Role, role));
+            claims.Add(new Claim(ClaimTypes.Role, role.ToString()));
         }
 
         // Wrap the claims in an authenticated identity.

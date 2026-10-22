@@ -29,7 +29,7 @@ public sealed class QueueApplicationService(
 
     private readonly RabbitMqOptions options = rabbitMqOptions.Value;
     private readonly JsonSerializerOptions pascalCaseJsonOptions =
-        jsonOptionsMonitor.Get(SerializerRegistrar.PascalCaseOptionsName);
+        jsonOptionsMonitor.Get(JsonSerializerOptionsName.PascalCaseOptions.ToString());
     private readonly SemaphoreSlim initializationLock = new(1, 1);
     private IConnection? connection;
     private IChannel? channel;
@@ -59,7 +59,7 @@ public sealed class QueueApplicationService(
         try
         {
             // Handlers are scoped; resolve them in a per-message scope.
-            using var scope = scopeFactory.CreateScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var serviceProvider = scope.ServiceProvider;
 
             // Execute the command and capture the outcome.
@@ -92,7 +92,7 @@ public sealed class QueueApplicationService(
             );
 
             // Record a transient failure so the retry sweep can republish the command.
-            using var scope = scopeFactory.CreateScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var failedCommandDao = scope.ServiceProvider.GetRequiredService<IFailedCommandDao>();
 
             await ScheduleRetryAsync(
@@ -108,7 +108,7 @@ public sealed class QueueApplicationService(
     /// <inheritdoc />
     public async Task RetryDueAsync(CancellationToken cancellationToken = default)
     {
-        using var scope = scopeFactory.CreateScope();
+        await using var scope = scopeFactory.CreateAsyncScope();
         var failedCommandDao = scope.ServiceProvider.GetRequiredService<IFailedCommandDao>();
 
         // Load failed commands that are due for another attempt.

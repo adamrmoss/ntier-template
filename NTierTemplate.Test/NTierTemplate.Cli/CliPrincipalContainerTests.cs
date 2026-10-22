@@ -13,7 +13,7 @@ public class CliPrincipalContainerTests
     public void SignIn_StoresAuthenticatedPrincipalForTheScope()
     {
         var container = new CliPrincipalContainer();
-        var user = TestUsers.Create(id: 5, email: "admin@example.com", roles: ["Admin"]);
+        var user = TestUsers.Create(id: 5, email: "admin@example.com", roles: [UserRole.Admin]);
 
         container.SignIn(user);
 

@@ -39,7 +39,7 @@ public class TokenServiceTests
     [Test]
     public async Task CreateTokenPairAsync_ReturnsSignedJwtWithRoleClaims()
     {
-        var user = TestUsers.Create(id: 7, email: "user@example.com", roles: ["User", "Admin"]);
+        var user = TestUsers.Create(id: 7, email: "user@example.com", roles: [UserRole.User, UserRole.Admin]);
 
         this.authApplicationService
             .Setup(auth => auth.IssueRefreshTokenAsync(user.Id, 14, It.IsAny<CancellationToken>()))

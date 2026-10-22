@@ -10,16 +10,14 @@ namespace NTierTemplate.Cli;
 /// </summary>
 public sealed class UserCreateAdminCommand : CliCommand
 {
-    private readonly Option<string> adminEmailOption = new("--admin-email")
+    private readonly Option<string> adminEmailOption = new("--admin-email", "Email address for the new administrator account.")
     {
-        Description = "Email address for the new administrator account.",
-        Required = true,
+        IsRequired = true,
     };
 
-    private readonly Option<string> adminPasswordOption = new("--admin-password")
+    private readonly Option<string> adminPasswordOption = new("--admin-password", "Password for the new administrator account.")
     {
-        Description = "Password for the new administrator account.",
-        Required = true,
+        IsRequired = true,
     };
 
     /// <inheritdoc />
@@ -30,32 +28,17 @@ public sealed class UserCreateAdminCommand : CliCommand
         var createAdminCommand = new Command("create-admin", "Create an administrator account.");
 
         this.AddAuthOptions(createAdminCommand);
-        createAdminCommand.Options.Add(this.adminEmailOption);
-        createAdminCommand.Options.Add(this.adminPasswordOption);
+        createAdminCommand.AddOption(this.adminEmailOption);
+        createAdminCommand.AddOption(this.adminPasswordOption);
+        createAdminCommand.SetHandler(
+            this.CreateAdminUserAsync,
+            this.EmailOption,
+            this.PasswordOption,
+            this.adminEmailOption,
+            this.adminPasswordOption
+        );
 
-        createAdminCommand.SetAction(async parseResult =>
-        {
-            try
-            {
-                // Create the administrator account as an authenticated admin.
-                await this.CreateAdminUserAsync(
-                    parseResult.GetValue(this.EmailOption)!,
-                    parseResult.GetValue(this.PasswordOption)!,
-                    parseResult.GetValue(this.adminEmailOption)!,
-                    parseResult.GetValue(this.adminPasswordOption)!
-                );
-
-                return 0;
-            }
-            catch (InvalidOperationException exception)
-            {
-                // Surface validation and authorization failures to stderr.
-                Console.Error.WriteLine(exception.Message);
-                return 1;
-            }
-        });
-
-        command.Subcommands.Add(createAdminCommand);
+        command.AddCommand(createAdminCommand);
 
         return command;
     }

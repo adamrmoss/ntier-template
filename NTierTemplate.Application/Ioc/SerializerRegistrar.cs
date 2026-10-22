@@ -10,29 +10,23 @@ namespace NTierTemplate.Application.Ioc;
 public static class SerializerRegistrar
 {
     /// <summary>
-    /// Named options for camelCase JSON consumed by the frontend.
-    /// </summary>
-    public const string CamelCaseOptionsName = "CamelCaseOptions";
-
-    /// <summary>
-    /// Named options for PascalCase JSON used on the server and in queue messages.
-    /// </summary>
-    public const string PascalCaseOptionsName = "PascalCaseOptions";
-
-    /// <summary>
-    /// Named options for snake_case JSON used by third-party integrations.
-    /// </summary>
-    public const string SnakeCaseOptionsName = "SnakeCaseOptions";
-
-    /// <summary>
     /// Register named <see cref="JsonSerializerOptions"/> for camelCase, PascalCase, and snake_case serialization.
     /// </summary>
     /// <param name="serviceCollection">The service collection to register serializers with.</param>
     public static void RegisterSerializers(this IServiceCollection serviceCollection)
     {
-        serviceCollection.Configure<JsonSerializerOptions>(CamelCaseOptionsName, ConfigureCamelCase);
-        serviceCollection.Configure<JsonSerializerOptions>(PascalCaseOptionsName, ConfigurePascalCase);
-        serviceCollection.Configure<JsonSerializerOptions>(SnakeCaseOptionsName, ConfigureSnakeCase);
+        serviceCollection.Configure<JsonSerializerOptions>(
+            JsonSerializerOptionsName.CamelCaseOptions.ToString(),
+            ConfigureCamelCase
+        );
+        serviceCollection.Configure<JsonSerializerOptions>(
+            JsonSerializerOptionsName.PascalCaseOptions.ToString(),
+            ConfigurePascalCase
+        );
+        serviceCollection.Configure<JsonSerializerOptions>(
+            JsonSerializerOptionsName.SnakeCaseOptions.ToString(),
+            ConfigureSnakeCase
+        );
     }
 
     /// <summary>
@@ -43,6 +37,9 @@ public static class SerializerRegistrar
     {
         options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+
+        // Write enum member names as JSON strings.
+        options.Converters.Add(new JsonStringEnumConverter());
     }
 
     /// <summary>
@@ -53,6 +50,9 @@ public static class SerializerRegistrar
     {
         options.PropertyNamingPolicy = null;
         options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+
+        // Write enum member names as JSON strings.
+        options.Converters.Add(new JsonStringEnumConverter());
     }
 
     /// <summary>
@@ -64,5 +64,8 @@ public static class SerializerRegistrar
         options.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
         options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         options.NumberHandling = JsonNumberHandling.AllowReadingFromString;
+
+        // Write enum member names as JSON strings.
+        options.Converters.Add(new JsonStringEnumConverter());
     }
 }

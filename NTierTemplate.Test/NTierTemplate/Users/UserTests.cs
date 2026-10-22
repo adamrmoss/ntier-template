@@ -39,25 +39,25 @@ public class UserTests
     }
 
     [Test]
-    public void HasRole_ReturnsTrue_WhenRoleMatchesCaseInsensitively()
+    public void HasRole_ReturnsTrue_WhenRoleIsPresent()
     {
-        var user = TestUsers.Create(roles: ["Admin"]);
+        var user = TestUsers.Create(roles: [UserRole.Admin]);
 
-        user.HasRole("admin").Should().BeTrue();
+        user.HasRole(UserRole.Admin).Should().BeTrue();
     }
 
     [Test]
     public void HasRole_ReturnsFalse_WhenRoleIsMissing()
     {
-        var user = TestUsers.Create(roles: ["User"]);
+        var user = TestUsers.Create(roles: [UserRole.User]);
 
-        user.HasRole("Admin").Should().BeFalse();
+        user.HasRole(UserRole.Admin).Should().BeFalse();
     }
 
     [Test]
     public void IsAdmin_ReturnsTrue_WhenUserHasAdminRole()
     {
-        var user = TestUsers.Create(roles: ["Admin", "User"]);
+        var user = TestUsers.Create(roles: [UserRole.Admin, UserRole.User]);
 
         user.IsAdmin.Should().BeTrue();
     }
@@ -65,7 +65,7 @@ public class UserTests
     [Test]
     public void IsAdmin_ReturnsFalse_WhenUserDoesNotHaveAdminRole()
     {
-        var user = TestUsers.Create(roles: ["User"]);
+        var user = TestUsers.Create(roles: [UserRole.User]);
 
         user.IsAdmin.Should().BeFalse();
     }

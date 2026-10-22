@@ -12,7 +12,7 @@ public abstract class ApiControllerBase(IOptionsMonitor<JsonSerializerOptions> j
     : ControllerBase
 {
     private readonly JsonSerializerOptions camelCaseJsonOptions =
-        jsonOptionsMonitor.Get(SerializerRegistrar.CamelCaseOptionsName);
+        jsonOptionsMonitor.Get(JsonSerializerOptionsName.CamelCaseOptions.ToString());
 
     /// <summary>
     /// Return an Ok result with the value serialized as camelCase JSON for the frontend.

@@ -6,7 +6,7 @@ namespace NTierTemplate.Application.Ioc;
 /// <summary>
 /// Startup tasks shared across entry-point hosts.
 /// </summary>
-public static class NTierTemplateStartupExtensions
+public static class NTierTemplateStartup
 {
     /// <summary>
     /// Ensure default application roles exist before serving traffic or running commands.
@@ -19,7 +19,7 @@ public static class NTierTemplateStartupExtensions
     )
     {
         // Resolve user services in a short-lived scope.
-        using var scope = services.CreateScope();
+        await using var scope = services.CreateAsyncScope();
         var userApplicationService = scope.ServiceProvider.GetRequiredService<IUserApplicationService>();
 
         // Ensure default roles exist in the database.

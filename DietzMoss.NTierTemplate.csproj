@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <PackageId>DietzMoss.NTierTemplate</PackageId>
-        <PackageVersion>1.0.0</PackageVersion>
+        <PackageVersion>2.0.0</PackageVersion>
         <Title>N-Tier Application Solution</Title>
         <Authors>Adam R Moss</Authors>
         <Description>N-tier enterprise application template: Angular client, ASP.NET Core API, CLI, and RabbitMQ worker queue.</Description>
@@ -13,7 +13,7 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
 
         <PackageType>Template</PackageType>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <IncludeContentInPack>true</IncludeContentInPack>
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <ContentTargetFolders>content</ContentTargetFolders>

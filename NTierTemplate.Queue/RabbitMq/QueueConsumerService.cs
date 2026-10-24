@@ -25,7 +25,7 @@ public class QueueConsumerService(
 {
     private readonly RabbitMqOptions options = rabbitMqOptions.Value;
     private readonly JsonSerializerOptions pascalCaseJsonOptions =
-        jsonOptionsMonitor.Get(SerializerRegistrar.PascalCaseOptionsName);
+        jsonOptionsMonitor.Get(JsonSerializerOptionsName.PascalCaseOptions.ToString());
     private readonly SemaphoreSlim processingLock = new(1, 1);
 
     /// <inheritdoc />
@@ -125,7 +125,7 @@ public class QueueConsumerService(
             try
             {
                 // Delegate command execution to the application layer.
-                using var scope = scopeFactory.CreateScope();
+                await using var scope = scopeFactory.CreateAsyncScope();
                 var queueApplicationService = scope.ServiceProvider.GetRequiredService<IQueueApplicationService>();
 
                 await queueApplicationService.ProcessAsync(envelope, cancellationToken);

@@ -8,16 +8,14 @@ Install every dependency before touching repo settings, database schema, or depl
 
 ### .NET
 
-The solution targets **.NET 9** (`net9.0`) with EF Core and JWT packages on **9.0.18**.
-
-On **Ubuntu 26.04**, .NET 10 ships in the built-in Ubuntu feed, but .NET 9 does **not**. The Microsoft package feed (`packages.microsoft.com`) also does **not** publish .NET packages for Ubuntu 26.04 — do not use `packages-microsoft-prod.deb` here.
+The solution targets **.NET 10** (`net10.0`). EF Core and the JWT packages are on **9.0.17**, with **Pomelo.EntityFrameworkCore.MySql 9.0.0** (stable Pomelo does not yet support EF Core 10).
 
 Add Canonical’s .NET backports PPA, then install the SDK:
 
 ```bash
 sudo add-apt-repository ppa:dotnet/backports
 sudo apt update
-sudo apt install -y dotnet-sdk-9.0
+sudo apt install -y dotnet-sdk-10.0
 ```
 
 Install the EF Core CLI as a global tool:
@@ -40,12 +38,12 @@ dotnet --version
 dotnet ef --version
 ```
 
-`dotnet --list-sdks` should include a **9.0.x** SDK. Ubuntu 26.04 may also list **10.0.x** from the built-in feed; build and test this repo with the 9.0 SDK (`dotnet build` uses the latest installed SDK by default — use a `global.json` pinning `9.0.x` if both are present and the wrong one is selected).
+`dotnet --list-sdks` should include a **10.0.x** SDK.
 
 For production hosts running published API or queue binaries without the SDK, install the matching ASP.NET Core runtime from the same PPA:
 
 ```bash
-sudo apt install -y aspnetcore-runtime-9.0
+sudo apt install -y aspnetcore-runtime-10.0
 ```
 
 ### MySQL
@@ -79,7 +77,16 @@ Do **not** create the application database or `ntier` user yet — that comes af
 
 ### RabbitMQ
 
-Install and start RabbitMQ:
+The broker's Erlang node name is `rabbit@` plus the short hostname (`hostname -s`). That short name must resolve to an address where the Erlang port mapper (epmd, port 4369) is listening. On a typical host, `/etc/hosts` maps it to `127.0.1.1` or `127.0.0.1`, and the package starts on install.
+
+Check the short name before installing:
+
+```bash
+hostname -s
+getent hosts "$(hostname -s)"
+```
+
+When that name resolves to a local address, install and start RabbitMQ:
 
 ```bash
 sudo apt update
@@ -99,7 +106,48 @@ Verify the broker is running:
 sudo rabbitmqctl status
 ```
 
+Clients, including `NTierTemplate.Queue`, connect separately as AMQP to `localhost` port `5672`. The node name is only the broker's internal Erlang identity.
+
 Broker credentials and queue permissions are configured in Project setup after `queuesettings.json` exists.
+
+#### Optional: short hostname Erlang cannot use
+
+Skip this when `hostname -s` already resolves locally.
+
+Some images set the hostname from the public IP, so the short name is a bare number (`9` from `9.74.148.132.host.secureserver.net`). `/etc/hosts` on those images often points that name at the reversed address (`132.148.74.9`), which is not a local interface. Erlang then treats the numeric host as an IP, epmd times out (`epmd error for host 9: timeout`), and `rabbitmq-server` exits 1. `apt` leaves the package unconfigured (`dpkg` error on `rabbitmq-server`).
+
+Leave `/etc/hostname` alone when the provider marks it automatically provisioned. Pin the node name to `rabbit@localhost` instead. `localhost` is already `127.0.0.1` in `/etc/hosts`. AMQP clients still use port `5672` on localhost.
+
+Two files are required, because the server and the CLI load configuration differently:
+
+- The systemd unit runs `/usr/lib/rabbitmq/bin/rabbitmq-server`, which does not export assignments from `/etc/rabbitmq/rabbitmq-env.conf`. `Environment=` on the unit is what the broker process sees.
+- `rabbitmqctl` exports every assignment in `rabbitmq-env.conf`. Without `NODENAME` there, the CLI still targets `rabbit@` plus the short hostname and reports that the node is not running.
+
+Write both before the first successful start:
+
+```bash
+sudo mkdir -p /etc/rabbitmq /etc/systemd/system/rabbitmq-server.service.d
+printf '%s\n' 'NODENAME=rabbit@localhost' | sudo tee /etc/rabbitmq/rabbitmq-env.conf
+printf '%s\n' '[Service]' 'Environment=RABBITMQ_NODENAME=rabbit@localhost' | sudo tee /etc/systemd/system/rabbitmq-server.service.d/nodename.conf
+sudo systemctl daemon-reload
+```
+
+If RabbitMQ is not installed yet, install it after those files exist:
+
+```bash
+sudo apt update
+sudo apt install -y rabbitmq-server
+sudo systemctl enable --now rabbitmq-server
+```
+
+If `apt install` already failed while configuring `rabbitmq-server`, finish that configure (do not reinstall):
+
+```bash
+sudo systemctl reset-failed rabbitmq-server.service
+sudo dpkg --configure rabbitmq-server
+```
+
+`sudo rabbitmqctl status` should show node `rabbit@localhost`.
 
 ### Node.js
 

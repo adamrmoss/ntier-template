@@ -23,7 +23,7 @@ Projects live at the repo root, one per layer:
 | `NTierTemplate.Cli/`         | Command-line entry points (host + IoC bootstrap)                  |
 | `NTierTemplate.Queue/`       | RabbitMQ worker host (host + IoC bootstrap)                       |
 | `ntier-template-web/`        | Angular client (kebab-case; separate from backend projects)       |
-| `NTierTemplate.Test/`        | Unit tests — references Domain, Application, and Data (DAO interfaces for mocks) |
+| `NTierTemplate.Test/`        | Unit tests — references every backend project; see `testing.mdc` |
 
 Within each project, organize by **domain**, not technical folders (`controllers/`, `services/`, `views/`, etc.).
 
@@ -34,7 +34,7 @@ Within each project, organize by **domain**, not technical folders (`controllers
 - Prettier `tabWidth` must be **4** to match
 - Opening braces on their own line (Allman) — see `csharp-standards.mdc` and `angular-template-simplicity.mdc` examples
 
-All **non-configuration logic** lives in Domain and Application. Entry points, Data, and hosts are configuration and wiring — not unit-tested.
+Configuration and wiring stay out of unit tests. See `testing.mdc` for what each tier tests.
 
 ## Layer Dependencies
 
@@ -62,7 +62,7 @@ Web ──HTTP──▶ Api            (outside project-reference graph)
 | `NTierTemplate.Api/`         | Domain, Application         |
 | `NTierTemplate.Cli/`         | Domain, Application         |
 | `NTierTemplate.Queue/`       | Domain, Application         |
-| `NTierTemplate.Test/`        | Domain, Application, Data     |
+| `NTierTemplate.Test/`        | Domain, Application, Data, Api, Cli, Queue |
 | `ntier-template-web/`        | *(none — HTTP client only)* |
 
 Entry points must not take a project reference to **Data**. They consume behavior through Application services and shared types from Domain — not EF types, DAO implementations, or Identity managers.

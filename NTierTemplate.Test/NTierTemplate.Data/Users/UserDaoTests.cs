@@ -30,7 +30,7 @@ public class UserDaoTests : InMemoryDataTestBase
         );
 
         result.Succeeded.Should().BeTrue();
-        result.User!.Roles.Should().Contain("User");
+        result.User!.Roles.Should().Contain(UserRole.User);
     }
 
     [Test]
@@ -83,7 +83,7 @@ public class UserDaoTests : InMemoryDataTestBase
         var result = await this.userDao.CreateAdminAsync("admin@example.com", "Password1");
 
         result.Succeeded.Should().BeTrue();
-        result.User!.Roles.Should().Contain("Admin");
-        result.User.Roles.Should().Contain("User");
+        result.User!.Roles.Should().Contain(UserRole.Admin);
+        result.User.Roles.Should().Contain(UserRole.User);
     }
 }

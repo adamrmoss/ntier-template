@@ -16,7 +16,7 @@ public class UserPrincipalTests
             FirstName = "Ada",
             LastName = "Lovelace",
             DisplayName = "Ada Lovelace",
-            Roles = ["Admin", "User"],
+            Roles = [UserRole.Admin, UserRole.User],
         };
 
         var principal = UserPrincipal.Create(user, "Bearer");

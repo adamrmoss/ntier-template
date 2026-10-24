@@ -12,11 +12,11 @@ public class Program
     /// </summary>
     /// <param name="args">The command-line arguments passed to the program.</param>
     /// <returns>The exit code (0 for success, non-zero for failure).</returns>
-    public static int Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
         var rootCommand = new RootCommand("NTierTemplate command-line tools.");
-        rootCommand.Subcommands.Add(new UserCreateAdminCommand().Build());
+        rootCommand.AddCommand(new UserCreateAdminCommand().Build());
 
-        return rootCommand.Parse(args).Invoke();
+        return await rootCommand.InvokeAsync(args);
     }
 }

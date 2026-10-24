@@ -22,6 +22,9 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        // Integrate with systemd for service lifetime.
+        builder.Host.UseSystemd();
+
         // Configure host-specific services and shared application wiring.
         builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 
@@ -85,7 +88,7 @@ public class Program
         var app = builder.Build();
 
         // Ensure Identity roles exist before serving traffic.
-        await NTierTemplateStartupExtensions.EnsureDefaultRolesAsync(app.Services);
+        await NTierTemplateStartup.EnsureDefaultRolesAsync(app.Services);
 
         // Configure the HTTP pipeline.
         app.UseForwardedHeaders();

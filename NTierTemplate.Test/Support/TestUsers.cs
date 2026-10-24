@@ -16,7 +16,7 @@ public static class TestUsers
         string firstName = "Test",
         string lastName = "User",
         string displayName = "Test User",
-        string[]? roles = null
+        UserRole[]? roles = null
     )
     {
         return new User
@@ -26,7 +26,7 @@ public static class TestUsers
             FirstName = firstName,
             LastName = lastName,
             DisplayName = displayName,
-            Roles = roles ?? ["User"],
+            Roles = roles ?? [UserRole.User],
         };
     }
 }

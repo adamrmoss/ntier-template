@@ -11,7 +11,7 @@ namespace NTierTemplate.Application.Ioc;
 /// <summary>
 /// Shared dependency injection wiring for NTierTemplate entry-point hosts.
 /// </summary>
-public static class NTierTemplateApplicationExtensions
+public static class NTierTemplateApplicationRegistrar
 {
     /// <summary>
     /// Register serializers, DAOs, application services, EF Core, and Identity.

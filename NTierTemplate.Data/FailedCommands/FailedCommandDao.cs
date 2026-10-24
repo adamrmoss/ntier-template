@@ -5,19 +5,28 @@ namespace NTierTemplate.Data.FailedCommands;
 /// <summary>
 /// EF Core persistence for failed queue commands.
 /// </summary>
-public class FailedCommandDao(NTierTemplateDbContext dbContext) : DaoBase, IFailedCommandDao
+public class FailedCommandDao : DaoBase, IFailedCommandDao
 {
+    /// <summary>
+    /// Create failed-command data access bound to the database context.
+    /// </summary>
+    /// <param name="dbContext">The database context.</param>
+    public FailedCommandDao(NTierTemplateDbContext dbContext)
+        : base(dbContext)
+    {
+    }
+
     /// <inheritdoc />
     public async Task UpsertAsync(FailedCommand failedCommand, CancellationToken cancellationToken = default)
     {
         // Look up an existing failed-command row by message id.
-        var existing = await dbContext.FailedCommand
+        var existing = await this.dbContext.FailedCommand
             .SingleOrDefaultAsync(command => command.MessageId == failedCommand.MessageId, cancellationToken);
 
         if (existing == null)
         {
             // Insert a new failed-command record.
-            dbContext.FailedCommand.Add(failedCommand);
+            this.dbContext.FailedCommand.Add(failedCommand);
         }
         else
         {
@@ -33,7 +42,7 @@ public class FailedCommandDao(NTierTemplateDbContext dbContext) : DaoBase, IFail
         }
 
         // Persist the insert or update.
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await this.dbContext.SaveChangesAsync(cancellationToken);
     }
 
     /// <inheritdoc />
@@ -43,7 +52,7 @@ public class FailedCommandDao(NTierTemplateDbContext dbContext) : DaoBase, IFail
         CancellationToken cancellationToken = default
     )
     {
-        return await dbContext.FailedCommand
+        return await this.dbContext.FailedCommand
             .Where(command =>
                 command.Status == FailedCommandStatus.PendingRetry
                 && command.NextRetryAtUtc != null
@@ -57,7 +66,7 @@ public class FailedCommandDao(NTierTemplateDbContext dbContext) : DaoBase, IFail
     public async Task MarkSucceededAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
         // Load the failed-command row by message id.
-        var existing = await dbContext.FailedCommand
+        var existing = await this.dbContext.FailedCommand
             .SingleOrDefaultAsync(command => command.MessageId == messageId, cancellationToken);
 
         if (existing == null)
@@ -68,6 +77,6 @@ public class FailedCommandDao(NTierTemplateDbContext dbContext) : DaoBase, IFail
         // Mark the command succeeded and clear the next retry time.
         existing.Status = FailedCommandStatus.Succeeded;
         existing.NextRetryAtUtc = null;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await this.dbContext.SaveChangesAsync(cancellationToken);
     }
 }

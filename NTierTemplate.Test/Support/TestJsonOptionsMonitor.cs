@@ -15,7 +15,10 @@ public static class TestJsonOptionsMonitor
     /// </summary>
     public static IOptionsMonitor<JsonSerializerOptions> CreateCamelCaseMonitor()
     {
-        return CreateMonitor(SerializerRegistrar.CamelCaseOptionsName, SerializerRegistrar.ConfigureCamelCase);
+        return CreateMonitor(
+            JsonSerializerOptionsName.CamelCaseOptions.ToString(),
+            SerializerRegistrar.ConfigureCamelCase
+        );
     }
 
     /// <summary>
@@ -23,7 +26,10 @@ public static class TestJsonOptionsMonitor
     /// </summary>
     public static IOptionsMonitor<JsonSerializerOptions> CreatePascalCaseMonitor()
     {
-        return CreateMonitor(SerializerRegistrar.PascalCaseOptionsName, SerializerRegistrar.ConfigurePascalCase);
+        return CreateMonitor(
+            JsonSerializerOptionsName.PascalCaseOptions.ToString(),
+            SerializerRegistrar.ConfigurePascalCase
+        );
     }
 
     private static IOptionsMonitor<JsonSerializerOptions> CreateMonitor(

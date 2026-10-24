@@ -8,18 +8,35 @@ namespace NTierTemplate.Data.Users;
 /// <summary>
 /// Data access for application account users.
 /// </summary>
-public class UserDao(
-    NTierTemplateDbContext dbContext,
-    UserManager<ApplicationUser> userManager,
-    RoleManager<ApplicationRole> roleManager
-)
-    : DaoBase, IUserDao
+public class UserDao : DaoBase, IUserDao
 {
+    private readonly UserManager<ApplicationUser> userManager;
+
+    private readonly RoleManager<ApplicationRole> roleManager;
+
+    /// <summary>
+    /// Create user data access bound to Identity and the database context.
+    /// </summary>
+    /// <param name="dbContext">The database context.</param>
+    /// <param name="userManager">Identity user manager.</param>
+    /// <param name="roleManager">Identity role manager.</param>
+    public UserDao(
+        NTierTemplateDbContext dbContext,
+        UserManager<ApplicationUser> userManager,
+        RoleManager<ApplicationRole> roleManager
+    )
+        : base(dbContext)
+    {
+        // Keep the Identity managers for account operations.
+        this.userManager = userManager;
+        this.roleManager = roleManager;
+    }
+
     /// <inheritdoc />
     public async Task<User[]> GetAllAsync(CancellationToken cancellationToken = default)
     {
         // Load persisted users ordered for display.
-        var users = await dbContext.Users
+        var users = await this.dbContext.Users
             .OrderBy(user => user.DisplayName ?? user.Email)
             .ToArrayAsync(cancellationToken);
 
@@ -31,7 +48,7 @@ public class UserDao(
     public async Task<User?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         // Load the user by primary key.
-        var user = await dbContext.Users
+        var user = await this.dbContext.Users
             .SingleOrDefaultAsync(entity => entity.Id == id, cancellationToken);
 
         if (user == null)
@@ -47,7 +64,7 @@ public class UserDao(
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         // Resolve the account by normalized email.
-        var user = await userManager.FindByEmailAsync(email);
+        var user = await this.userManager.FindByEmailAsync(email);
 
         if (user == null)
         {
@@ -65,7 +82,7 @@ public class UserDao(
     )
     {
         // Resolve the account from the authenticated principal.
-        var user = await userManager.GetUserAsync(principal);
+        var user = await this.userManager.GetUserAsync(principal);
 
         if (user == null)
         {
@@ -80,8 +97,8 @@ public class UserDao(
     public async Task EnsureDefaultRolesExistAsync(CancellationToken cancellationToken = default)
     {
         // Ensure baseline application roles exist.
-        await this.EnsureRoleExistsAsync("Admin");
-        await this.EnsureRoleExistsAsync("User");
+        await this.EnsureRoleExistsAsync(UserRole.Admin.ToString());
+        await this.EnsureRoleExistsAsync(UserRole.User.ToString());
     }
 
     /// <inheritdoc />
@@ -102,7 +119,7 @@ public class UserDao(
         };
 
         // Persist the account with the supplied password.
-        var createResult = await userManager.CreateAsync(user, request.Password);
+        var createResult = await this.userManager.CreateAsync(user, request.Password);
 
         if (!createResult.Succeeded)
         {
@@ -114,8 +131,8 @@ public class UserDao(
         }
 
         // Assign the default User role.
-        await this.EnsureRoleExistsAsync("User");
-        await userManager.AddToRoleAsync(user, "User");
+        await this.EnsureRoleExistsAsync(UserRole.User.ToString());
+        await this.userManager.AddToRoleAsync(user, UserRole.User.ToString());
 
         // Return the created domain user.
         var domainUser = await this.MapUserAsync(user, cancellationToken);
@@ -146,7 +163,7 @@ public class UserDao(
         };
 
         // Persist the account with the supplied password.
-        var createResult = await userManager.CreateAsync(user, password);
+        var createResult = await this.userManager.CreateAsync(user, password);
 
         if (!createResult.Succeeded)
         {
@@ -158,8 +175,8 @@ public class UserDao(
         }
 
         // Assign Admin and User roles.
-        await userManager.AddToRoleAsync(user, "Admin");
-        await userManager.AddToRoleAsync(user, "User");
+        await this.userManager.AddToRoleAsync(user, UserRole.Admin.ToString());
+        await this.userManager.AddToRoleAsync(user, UserRole.User.ToString());
 
         // Return the created domain user.
         var domainUser = await this.MapUserAsync(user, cancellationToken);
@@ -179,7 +196,7 @@ public class UserDao(
     )
     {
         // Resolve the account by email.
-        var user = await userManager.FindByEmailAsync(email);
+        var user = await this.userManager.FindByEmailAsync(email);
 
         if (user == null)
         {
@@ -187,7 +204,7 @@ public class UserDao(
         }
 
         // Verify the supplied password.
-        var passwordValid = await userManager.CheckPasswordAsync(user, password);
+        var passwordValid = await this.userManager.CheckPasswordAsync(user, password);
 
         if (!passwordValid)
         {
@@ -212,7 +229,7 @@ public class UserDao(
     )
     {
         // Resolve the account by email.
-        var user = await userManager.FindByEmailAsync(email);
+        var user = await this.userManager.FindByEmailAsync(email);
 
         if (user == null)
         {
@@ -220,13 +237,13 @@ public class UserDao(
         }
 
         // Verify the supplied password.
-        return await userManager.CheckPasswordAsync(user, password);
+        return await this.userManager.CheckPasswordAsync(user, password);
     }
 
     /// <inheritdoc />
     public async Task<bool> IsEmailConfirmedAsync(string email, CancellationToken cancellationToken = default)
     {
-        var user = await userManager.FindByEmailAsync(email);
+        var user = await this.userManager.FindByEmailAsync(email);
 
         return user?.EmailConfirmed == true;
     }
@@ -238,7 +255,7 @@ public class UserDao(
     )
     {
         // Resolve the account by id.
-        var user = await userManager.FindByIdAsync(userId.ToString());
+        var user = await this.userManager.FindByIdAsync(userId.ToString());
 
         if (user == null)
         {
@@ -246,7 +263,7 @@ public class UserDao(
         }
 
         // Generate an Identity email confirmation token.
-        return await userManager.GenerateEmailConfirmationTokenAsync(user);
+        return await this.userManager.GenerateEmailConfirmationTokenAsync(user);
     }
 
     /// <inheritdoc />
@@ -257,7 +274,7 @@ public class UserDao(
     )
     {
         // Resolve the account by id.
-        var user = await userManager.FindByIdAsync(userId.ToString());
+        var user = await this.userManager.FindByIdAsync(userId.ToString());
 
         if (user == null)
         {
@@ -269,7 +286,7 @@ public class UserDao(
         }
 
         // Confirm the email with the supplied token.
-        var result = await userManager.ConfirmEmailAsync(user, token);
+        var result = await this.userManager.ConfirmEmailAsync(user, token);
 
         if (!result.Succeeded)
         {
@@ -295,7 +312,7 @@ public class UserDao(
     )
     {
         // Resolve the account by email.
-        var user = await userManager.FindByEmailAsync(email);
+        var user = await this.userManager.FindByEmailAsync(email);
 
         if (user == null)
         {
@@ -303,7 +320,7 @@ public class UserDao(
         }
 
         // Generate an Identity password reset token.
-        return await userManager.GeneratePasswordResetTokenAsync(user);
+        return await this.userManager.GeneratePasswordResetTokenAsync(user);
     }
 
     /// <inheritdoc />
@@ -315,7 +332,7 @@ public class UserDao(
     )
     {
         // Resolve the account by email.
-        var user = await userManager.FindByEmailAsync(email);
+        var user = await this.userManager.FindByEmailAsync(email);
 
         if (user == null)
         {
@@ -327,7 +344,7 @@ public class UserDao(
         }
 
         // Reset the password with the supplied token.
-        var result = await userManager.ResetPasswordAsync(user, token, newPassword);
+        var result = await this.userManager.ResetPasswordAsync(user, token, newPassword);
 
         if (!result.Succeeded)
         {
@@ -394,29 +411,32 @@ public class UserDao(
         return entity.Email ?? string.Empty;
     }
 
-    private async Task<string[]> GetRoleNamesAsync(int userId, CancellationToken cancellationToken)
+    private async Task<UserRole[]> GetRoleNamesAsync(int userId, CancellationToken cancellationToken)
     {
-        return await dbContext.UserRoles
+        // Load role names from Identity, then map the closed set in memory.
+        var roleNames = await this.dbContext.UserRoles
             .Where(userRole => userRole.UserId == userId)
             .Join(
-                dbContext.Roles,
+                this.dbContext.Roles,
                 userRole => userRole.RoleId,
                 role => role.Id,
                 (userRole, role) => role.Name!
             )
             .OrderBy(roleName => roleName)
             .ToArrayAsync(cancellationToken);
+
+        return roleNames.Select(roleName => Enum.Parse<UserRole>(roleName)).ToArray();
     }
 
     private async Task EnsureRoleExistsAsync(string roleName)
     {
         // Skip creation when the role already exists.
-        if (await roleManager.RoleExistsAsync(roleName))
+        if (await this.roleManager.RoleExistsAsync(roleName))
         {
             return;
         }
 
         // Create the missing role.
-        await roleManager.CreateAsync(new ApplicationRole { Name = roleName });
+        await this.roleManager.CreateAsync(new ApplicationRole { Name = roleName });
     }
 }

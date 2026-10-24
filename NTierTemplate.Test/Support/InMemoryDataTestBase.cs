@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NTierTemplate.Data;
 using NTierTemplate.Data.Users;
+using NTierTemplate.Users;
 
 namespace NTierTemplate.Test.Support;
 
@@ -77,7 +78,7 @@ public abstract class InMemoryDataTestBase
         string password = "Password1"
     )
     {
-        await this.EnsureRoleExistsAsync("User");
+        await this.EnsureRoleExistsAsync(UserRole.User.ToString());
 
         var user = new ApplicationUser
         {
@@ -95,7 +96,7 @@ public abstract class InMemoryDataTestBase
             throw new InvalidOperationException(string.Join("; ", createResult.Errors.Select(error => error.Description)));
         }
 
-        await this.UserManager.AddToRoleAsync(user, "User");
+        await this.UserManager.AddToRoleAsync(user, UserRole.User.ToString());
 
         return user;
     }

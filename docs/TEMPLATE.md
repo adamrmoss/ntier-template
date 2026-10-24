@@ -81,13 +81,13 @@ The pack project is **not** in `ntier-template.sln` — adding it would leave a 
 ```bash
 dotnet pack DietzMoss.NTierTemplate.csproj -c Release
 
-dotnet new install ./bin/Release/DietzMoss.NTierTemplate.1.0.0.nupkg
+dotnet new install ./bin/Release/DietzMoss.NTierTemplate.2.0.0.nupkg
 # Instantiate using the command in "Create an Instance" above, then verify kay-fabe:
 #   no DietzMoss.NTierTemplate.csproj, no docs/TEMPLATE.md, no .template.config/
 dotnet new uninstall DietzMoss.NTierTemplate
 
 # Bump PackageVersion in DietzMoss.NTierTemplate.csproj before each release
-dotnet nuget push ./bin/Release/DietzMoss.NTierTemplate.1.0.0.nupkg \
+dotnet nuget push ./bin/Release/DietzMoss.NTierTemplate.2.0.0.nupkg \
   --api-key YOUR_API_KEY \
   --source https://api.nuget.org/v3/index.json
 ```
